@@ -1,0 +1,199 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --fundo: #080b12;
+  --painel: #111722;
+  --painel-claro: #182131;
+  --borda: #263247;
+  --texto: #f5f7fa;
+  --secundario: #9ba8bb;
+  --destaque: #7c5cff;
+  --verde: #25d366;
+  --vermelho: #ff4757;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+header {
+  padding: 28px 20px;
+  text-align: center;
+  background: var(--painel);
+  border-bottom: 1px solid var(--borda);
+}
+
+header h1 {
+  font-size: 30px;
+  letter-spacing: 1px;
+}
+
+header p {
+  margin-top: 8px;
+  color: var(--secundario);
+}
+
+main {
+  width: min(100% - 28px, 900px);
+  margin: 24px auto;
+}
+
+section {
+  margin-bottom: 18px;
+  padding: 20px;
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+}
+
+section h2 {
+  margin-bottom: 16px;
+  font-size: 21px;
+}
+
+section p {
+  margin: 10px 0;
+  color: var(--secundario);
+  line-height: 1.5;
+}
+
+button {
+  margin: 6px 4px 6px 0;
+  padding: 11px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 9px;
+  background: var(--painel-claro);
+  color: var(--texto);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--destaque);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 480px) {
+  header h1 {
+    font-size: 26px;
+  }
+
+  main {
+    width: min(100% - 20px, 900px);
+    margin-top: 16px;
+  }
+
+  section {
+    padding: 16px;
+  }
+
+  button {
+    width: 100%;
+    margin: 5px 0;
+  }
+}
+
+/* Logs do RAVEX-BOT */
+#logsBot {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 14px;
+  background: #080b12;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  scroll-behavior: smooth;
+}
+
+.linha-log {
+  padding: 3px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log-normal {
+  color: #d7deea;
+}
+
+.log-erro {
+  color: #ff6b76;
+}
+
+/* Login do RAVEX-HOST */
+.login-container {
+  width: min(100%, 440px);
+  margin: 40px auto;
+  padding: 28px;
+}
+
+.login-container h2 {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+#formLogin {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#formLogin label {
+  margin-top: 6px;
+  color: var(--secundario);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#formLogin input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  outline: none;
+  background: var(--fundo);
+  color: var(--texto);
+  font-size: 16px;
+}
+
+#formLogin input:focus {
+  border-color: var(--destaque);
+}
+
+#formLogin button {
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 13px 16px;
+  border-color: var(--destaque);
+}
+
+#formLogin button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+#mensagemLogin {
+  min-height: 24px;
+  margin: 6px 0 0;
+  text-align: center;
+  color: var(--vermelho);
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    margin: 24px auto;
+    padding: 20px 16px;
+  }
+}

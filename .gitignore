@@ -1,0 +1,12 @@
+node_modules/
+.env
+dados/logs/
+
+# Credenciais e backups locais
+.env.*
+!.env.example
+*.bak
+*.backup-*
+
+# Estado temporário de processos
+*.pid

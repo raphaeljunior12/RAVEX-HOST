@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAVEX-HOST</title>
+  <link rel="stylesheet" href="/css/painel.css">
+</head>
+<body>
+
+  <header>
+    <h1>⚡ RAVEX-HOST</h1>
+    <p>Hospedagem & Gerenciamento</p>
+    <button id="sairPainel" type="button">🚪 Sair</button>
+  </header>
+
+  <main>
+    <section>
+      <h2>📊 Dashboard</h2>
+      <p>🟢 Sistema Online</p>
+    </section>
+
+    <section>
+      <h2>🤖 RAVEX-BOT</h2>
+      <p id="statusBot">Status: ⚫ Verificando...</p>
+
+      <button id="iniciarBot" type="button">▶ Iniciar</button>
+      <button id="pararBot" type="button">⏹ Parar</button>
+      <button id="reiniciarBot" type="button">🔄 Reiniciar</button>
+    </section>
+
+    <section>
+      <h2>📈 Sistema</h2>
+      <p id="cpu">⚙️ CPU: --</p>
+      <p id="memoria">🧠 Memória: --</p>
+      <p id="uptimeHost">⚡ RAVEX-HOST: --</p>
+      <p id="uptimeSistema">📱 Sistema: --</p>
+    </section>
+
+    <section>
+      <h2>📋 Logs</h2>
+      <div id="logsBot">
+        <p>Carregando logs...</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/painel.js"></script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { obterStatusSistema } = require('../servicos/sistema');
+const { obterLogs } = require('../servicos/logsBot');
+const {
+  obterStatusBot,
+  iniciarBot,
+  pararBot,
+  reiniciarBot
+} = require('../servicos/gerenciadorBot');
+
+const HOST = process.env.HOST || '0.0.0.0';
+const PORT = Number(process.env.PORT) || 3000;
+
+const ARQUIVO_INDEX = path.join(
+  __dirname,
+  '..',
+  '..',
+  'public',
+  'index.html'
+);
+
+function iniciarServidor() {
+  const servidor = http.createServer(async (req, res) => {
+    if (req.url === '/api/bot/reiniciar' && req.method === 'POST') {
+      try {
+        const resultado = await reiniciarBot();
+
+        res.writeHead(resultado.sucesso ? 200 : 409, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store'
+        });
+
+        return res.end(JSON.stringify(resultado));
+      } catch (erro) {
+        console.error('❌ Erro ao reiniciar RAVEX-BOT:', erro);
+
+        res.writeHead(500, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store'
+        });
+
+        return res.end(JSON.stringify({
+          sucesso: false,
+          mensagem: 'Erro interno ao reiniciar o RAVEX-BOT.'
+        }));
+      }
+    }
+
+    if (req.url === '/api/bot/parar' && req.method === 'POST') {
+      const resultado = pararBot();
+
+      res.writeHead(resultado.sucesso ? 200 : 409, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store'
+      });
+
+      return res.end(JSON.stringify(resultado));
+    }
+
+    if (req.url === '/api/bot/iniciar' && req.method === 'POST') {
+      const resultado = iniciarBot();
+
+      res.writeHead(resultado.sucesso ? 200 : 409, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store'
+      });
+
+      return res.end(JSON.stringify(resultado));
+    }
+
+    if (req.url === '/api/bot/status' && req.method === 'GET') {
+      const statusBot = obterStatusBot();
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store'
+      });
+
+      return res.end(JSON.stringify(statusBot));
+    }
+
+    if (req.url === '/api/bot/logs' && req.method === 'GET') {
+      const logs = obterLogs();
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store'
+      });
+
+      return res.end(JSON.stringify({
+        sucesso: true,
+        logs
+      }));
+    }
+
+
+    if (req.url === '/api/status' && req.method === 'GET') {
+      const status = obterStatusSistema();
+
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store'
+      });
+
+      return res.end(JSON.stringify(status));
+    }
+
+    if (req.url === '/js/painel.js' && req.method === 'GET') {
+      const arquivoJS = path.join(
+        __dirname,
+        '..',
+        '..',
+        'public',
+        'js',
+        'painel.js'
+      );
+
+      fs.readFile(arquivoJS, (erro, conteudo) => {
+        if (erro) {
+          res.writeHead(500, {
+            'Content-Type': 'text/plain; charset=utf-8'
+          });
+
+          return res.end('Erro ao carregar o JavaScript.');
+        }
+
+        res.writeHead(200, {
+          'Content-Type': 'application/javascript; charset=utf-8'
+        });
+
+        return res.end(conteudo);
+      });
+
+      return;
+    }
+
+    if (req.url === '/css/painel.css' && req.method === 'GET') {
+      const arquivoCSS = path.join(
+        __dirname,
+        '..',
+        '..',
+        'public',
+        'css',
+        'painel.css'
+      );
+
+      fs.readFile(arquivoCSS, (erro, conteudo) => {
+        if (erro) {
+          res.writeHead(500, {
+            'Content-Type': 'text/plain; charset=utf-8'
+          });
+
+          return res.end('Erro ao carregar o CSS.');
+        }
+
+        res.writeHead(200, {
+          'Content-Type': 'text/css; charset=utf-8'
+        });
+
+        return res.end(conteudo);
+      });
+
+      return;
+    }
+
+    if (req.url === '/' && req.method === 'GET') {
+      fs.readFile(ARQUIVO_INDEX, (erro, conteudo) => {
+        if (erro) {
+          res.writeHead(500, {
+            'Content-Type': 'text/plain; charset=utf-8'
+          });
+
+          return res.end('Erro ao carregar o RAVEX-HOST.');
+        }
+
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8'
+        });
+
+        return res.end(conteudo);
+      });
+
+      return;
+    }
+
+    res.writeHead(404, {
+      'Content-Type': 'application/json; charset=utf-8'
+    });
+
+    res.end(JSON.stringify({
+      erro: 'Rota não encontrada'
+    }));
+  });
+
+  servidor.listen(PORT, HOST, () => {
+    console.log('╔════════════════════════════════════╗');
+    console.log('║          ⚡ RAVEX-HOST ⚡         ║');
+    console.log('╚════════════════════════════════════╝');
+    console.log(`🌐 Servidor: http://${HOST}:${PORT}`);
+    console.log('🟢 Status: ONLINE');
+  });
+
+  return servidor;
+}
+
+module.exports = iniciarServidor;

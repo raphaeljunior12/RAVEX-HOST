@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — RAVEX-HOST</title>
+  <link rel="stylesheet" href="/css/painel.css">
+</head>
+<body>
+
+  <header>
+    <h1>⚡ RAVEX-HOST</h1>
+    <p>Acesso ao painel administrativo</p>
+  </header>
+
+  <main>
+    <section class="login-container">
+      <h2>🔐 Entrar</h2>
+
+      <form id="formLogin">
+        <label for="usuario">Usuário</label>
+        <input
+          id="usuario"
+          name="usuario"
+          type="text"
+          autocomplete="username"
+          required
+        >
+
+        <label for="senha">Senha</label>
+        <input
+          id="senha"
+          name="senha"
+          type="password"
+          autocomplete="current-password"
+          required
+        >
+
+        <button id="entrar" type="submit">
+          🔓 Entrar
+        </button>
+
+        <p id="mensagemLogin"></p>
+      </form>
+    </section>
+  </main>
+
+  <script src="/js/login.js"></script>
+</body>
+</html>
