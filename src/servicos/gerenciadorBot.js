@@ -1,17 +1,15 @@
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const { adicionarLog } = require('./logsBot');
 
-const DIRETORIO_BOT = path.resolve(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  'RAVEX-BOT'
-);
+const {
+  obterBot,
+  removerBot
+} = require('./registroBots');
 
-const ARQUIVO_INICIAL = path.join(DIRETORIO_BOT, 'iniciar.js');
+const {
+  adicionarLogBot
+} = require('./logsBot');
 
 const DIRETORIO_PROCESSOS = path.resolve(
   __dirname,
@@ -21,35 +19,65 @@ const DIRETORIO_PROCESSOS = path.resolve(
   'processos'
 );
 
-const ARQUIVO_PID = path.join(
-  DIRETORIO_PROCESSOS,
-  'ravex-bot.pid'
-);
+const estados = new Map();
 
-let processoBot = null;
-let iniciadoEm = null;
-let ultimoCodigoSaida = null;
+function validarIdBot(idBot) {
+  const id = String(idBot || '').trim();
 
-function garantirDiretorioProcessos() {
-  fs.mkdirSync(DIRETORIO_PROCESSOS, {
-    recursive: true
-  });
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id)) {
+    throw new Error('ID_BOT_INVALIDO');
+  }
+
+  return id;
 }
 
-function salvarPid(pid) {
+function garantirDiretorioProcessos() {
+  fs.mkdirSync(
+    DIRETORIO_PROCESSOS,
+    { recursive: true }
+  );
+}
+
+function obterArquivoPid(idBot) {
+  const id = validarIdBot(idBot);
+
+  return path.join(
+    DIRETORIO_PROCESSOS,
+    `${id}.pid`
+  );
+}
+
+function obterEstado(idBot) {
+  const id = validarIdBot(idBot);
+
+  if (!estados.has(id)) {
+    estados.set(id, {
+      processo: null,
+      iniciadoEm: null,
+      ultimoCodigoSaida: null
+    });
+  }
+
+  return estados.get(id);
+}
+
+function salvarPid(idBot, pid) {
   garantirDiretorioProcessos();
 
   fs.writeFileSync(
-    ARQUIVO_PID,
+    obterArquivoPid(idBot),
     String(pid),
     'utf8'
   );
 }
 
-function lerPid() {
+function lerPid(idBot) {
   try {
     const conteudo = fs
-      .readFileSync(ARQUIVO_PID, 'utf8')
+      .readFileSync(
+        obterArquivoPid(idBot),
+        'utf8'
+      )
       .trim();
 
     const pid = Number(conteudo);
@@ -64,20 +92,22 @@ function lerPid() {
   }
 }
 
-function removerPid(pidEsperado = null) {
+function removerPid(idBot, pidEsperado = null) {
+  const arquivo = obterArquivoPid(idBot);
+
   try {
     if (
       pidEsperado !== null &&
-      lerPid() !== pidEsperado
+      lerPid(idBot) !== pidEsperado
     ) {
       return;
     }
 
-    fs.unlinkSync(ARQUIVO_PID);
+    fs.unlinkSync(arquivo);
   } catch (erro) {
     if (erro.code !== 'ENOENT') {
       console.error(
-        '❌ Erro ao remover PID do RAVEX-BOT:',
+        `❌ Erro ao remover PID do bot ${idBot}:`,
         erro.message
       );
     }
@@ -97,16 +127,19 @@ function processoExiste(pid) {
   }
 }
 
-function obterPidAtivo() {
+function obterPidAtivo(idBot) {
+  const id = validarIdBot(idBot);
+  const estado = obterEstado(id);
+
   if (
-    processoBot &&
-    processoBot.exitCode === null &&
-    !processoBot.killed
+    estado.processo &&
+    estado.processo.exitCode === null &&
+    !estado.processo.killed
   ) {
-    return processoBot.pid;
+    return estado.processo.pid;
   }
 
-  const pidSalvo = lerPid();
+  const pidSalvo = lerPid(id);
 
   if (!pidSalvo) {
     return null;
@@ -116,136 +149,308 @@ function obterPidAtivo() {
     return pidSalvo;
   }
 
-  removerPid(pidSalvo);
+  removerPid(id, pidSalvo);
+
   return null;
 }
 
-function obterStatusBot() {
-  const pid = obterPidAtivo();
+function obterStatusBot(idBot) {
+  const id = validarIdBot(idBot);
+  const bot = obterBot(id);
+
+  if (!bot) {
+    throw new Error('BOT_NAO_ENCONTRADO');
+  }
+
+  const estado = obterEstado(id);
+  const pid = obterPidAtivo(id);
   const online = pid !== null;
 
   return {
-    nome: 'RAVEX-BOT',
+    id: bot.id,
+    nome: bot.nome,
     online,
     status: online ? 'online' : 'offline',
     pid,
-    iniciadoEm: online ? iniciadoEm : null,
-    ultimoCodigoSaida,
-    diretorio: DIRETORIO_BOT
+    iniciadoEm:
+      online ? estado.iniciadoEm : null,
+    ultimoCodigoSaida:
+      estado.ultimoCodigoSaida,
+    diretorio: bot.diretorio,
+    arquivoInicial: bot.arquivoInicial
   };
 }
 
-function iniciarBot() {
-  const statusAtual = obterStatusBot();
+function listarStatusBots() {
+  const {
+    listarBots
+  } = require('./registroBots');
+
+  return listarBots().map((bot) => {
+    try {
+      return obterStatusBot(bot.id);
+    } catch (erro) {
+      return {
+        id: bot.id,
+        nome: bot.nome,
+        online: false,
+        status: 'erro',
+        pid: null,
+        erro: erro.message
+      };
+    }
+  });
+}
+
+function iniciarBot(idBot) {
+  const id = validarIdBot(idBot);
+  const bot = obterBot(id);
+
+  if (!bot) {
+    return {
+      sucesso: false,
+      mensagem: 'Bot não encontrado.'
+    };
+  }
+
+  const statusAtual = obterStatusBot(id);
 
   if (statusAtual.online) {
     return {
       sucesso: false,
-      mensagem: 'RAVEX-BOT já está online.',
+      mensagem: `${bot.nome} já está online.`,
       status: statusAtual
     };
   }
 
-  if (!fs.existsSync(ARQUIVO_INICIAL)) {
+  const arquivoInicial = path.resolve(
+    bot.diretorio,
+    bot.arquivoInicial
+  );
+
+  const diretorioResolvido = path.resolve(
+    bot.diretorio
+  );
+
+  const relativo = path.relative(
+    diretorioResolvido,
+    arquivoInicial
+  );
+
+  if (
+    relativo.startsWith('..') ||
+    path.isAbsolute(relativo)
+  ) {
     return {
       sucesso: false,
       mensagem:
-        'Arquivo iniciar.js do RAVEX-BOT não encontrado.',
-      status: obterStatusBot()
+        'Arquivo inicial está fora do diretório do bot.',
+      status: statusAtual
     };
   }
 
-  ultimoCodigoSaida = null;
+  if (!fs.existsSync(diretorioResolvido)) {
+    return {
+      sucesso: false,
+      mensagem:
+        `Diretório de ${bot.nome} não encontrado.`,
+      status: statusAtual
+    };
+  }
 
-  const novoProcesso = spawn(
-    process.execPath,
-    [ARQUIVO_INICIAL],
-    {
-      cwd: DIRETORIO_BOT,
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe']
+  if (!fs.existsSync(arquivoInicial)) {
+    return {
+      sucesso: false,
+      mensagem:
+        `Arquivo inicial de ${bot.nome} não encontrado.`,
+      status: statusAtual
+    };
+  }
+
+  const estado = obterEstado(id);
+
+  estado.ultimoCodigoSaida = null;
+
+  let novoProcesso;
+
+  try {
+    novoProcesso = spawn(
+      process.execPath,
+      [arquivoInicial],
+      {
+        cwd: diretorioResolvido,
+        env: process.env,
+        stdio: [
+          'ignore',
+          'pipe',
+          'pipe'
+        ]
+      }
+    );
+  } catch (erro) {
+    return {
+      sucesso: false,
+      mensagem:
+        `Não foi possível iniciar ${bot.nome}.`,
+      erro: erro.message,
+      status: obterStatusBot(id)
+    };
+  }
+
+  estado.processo = novoProcesso;
+  estado.iniciadoEm =
+    new Date().toISOString();
+
+  salvarPid(id, novoProcesso.pid);
+
+  adicionarLogBot(
+    id,
+    'sistema',
+    `${bot.nome} iniciado com PID ${novoProcesso.pid}.`
+  );
+
+  novoProcesso.stdout.on(
+    'data',
+    (dados) => {
+      const mensagem = dados.toString();
+
+      process.stdout.write(mensagem);
+
+      adicionarLogBot(
+        id,
+        'stdout',
+        mensagem
+      );
     }
   );
 
-  processoBot = novoProcesso;
-  iniciadoEm = new Date().toISOString();
+  novoProcesso.stderr.on(
+    'data',
+    (dados) => {
+      const mensagem = dados.toString();
 
-  salvarPid(novoProcesso.pid);
+      process.stderr.write(mensagem);
 
-  novoProcesso.stdout.on('data', (dados) => {
-    const mensagem = dados.toString();
-
-    process.stdout.write(mensagem);
-    adicionarLog('stdout', mensagem);
-  });
-
-  novoProcesso.stderr.on('data', (dados) => {
-    const mensagem = dados.toString();
-
-    process.stderr.write(mensagem);
-    adicionarLog('stderr', mensagem);
-  });
-
-  novoProcesso.once('exit', (codigo) => {
-    ultimoCodigoSaida = codigo;
-
-    removerPid(novoProcesso.pid);
-
-    if (processoBot === novoProcesso) {
-      processoBot = null;
-      iniciadoEm = null;
+      adicionarLogBot(
+        id,
+        'stderr',
+        mensagem
+      );
     }
-  });
+  );
 
-  novoProcesso.once('error', (erro) => {
-    console.error(
-      '❌ Erro no processo do RAVEX-BOT:',
-      erro.message
-    );
+  novoProcesso.once(
+    'exit',
+    (codigo, sinal) => {
+      estado.ultimoCodigoSaida = codigo;
 
-    removerPid(novoProcesso.pid);
+      removerPid(
+        id,
+        novoProcesso.pid
+      );
 
-    if (processoBot === novoProcesso) {
-      processoBot = null;
-      iniciadoEm = null;
+      adicionarLogBot(
+        id,
+        'sistema',
+        `${bot.nome} encerrado` +
+          ` (código: ${codigo ?? 'null'},` +
+          ` sinal: ${sinal || 'nenhum'}).`
+      );
+
+      if (
+        estado.processo === novoProcesso
+      ) {
+        estado.processo = null;
+        estado.iniciadoEm = null;
+      }
     }
-  });
+  );
+
+  novoProcesso.once(
+    'error',
+    (erro) => {
+      console.error(
+        `❌ Erro no processo de ${bot.nome}:`,
+        erro.message
+      );
+
+      removerPid(
+        id,
+        novoProcesso.pid
+      );
+
+      adicionarLogBot(
+        id,
+        'stderr',
+        `Erro de processo: ${erro.message}`
+      );
+
+      if (
+        estado.processo === novoProcesso
+      ) {
+        estado.processo = null;
+        estado.iniciadoEm = null;
+      }
+    }
+  );
 
   return {
     sucesso: true,
-    mensagem: 'RAVEX-BOT iniciado.',
-    status: obterStatusBot()
+    mensagem: `${bot.nome} iniciado.`,
+    status: obterStatusBot(id)
   };
 }
 
-function pararBot() {
-  const statusAtual = obterStatusBot();
+function pararBot(idBot) {
+  const id = validarIdBot(idBot);
+  const bot = obterBot(id);
+
+  if (!bot) {
+    return {
+      sucesso: false,
+      mensagem: 'Bot não encontrado.'
+    };
+  }
+
+  const statusAtual = obterStatusBot(id);
 
   if (!statusAtual.online) {
     return {
       sucesso: false,
-      mensagem: 'RAVEX-BOT já está offline.',
+      mensagem: `${bot.nome} já está offline.`,
       status: statusAtual
     };
   }
 
   try {
-    process.kill(statusAtual.pid, 'SIGTERM');
+    process.kill(
+      statusAtual.pid,
+      'SIGTERM'
+    );
+
+    adicionarLogBot(
+      id,
+      'sistema',
+      `Encerramento de ${bot.nome} solicitado.`
+    );
 
     return {
       sucesso: true,
       mensagem:
-        'Encerramento do RAVEX-BOT solicitado.',
+        `Encerramento de ${bot.nome} solicitado.`,
       pid: statusAtual.pid
     };
   } catch (erro) {
-    removerPid(statusAtual.pid);
+    removerPid(
+      id,
+      statusAtual.pid
+    );
 
     return {
       sucesso: false,
       mensagem:
-        'Não foi possível solicitar o encerramento do RAVEX-BOT.',
-      status: obterStatusBot()
+        `Não foi possível encerrar ${bot.nome}.`,
+      status: obterStatusBot(id)
     };
   }
 }
@@ -263,61 +468,147 @@ function esperarEncerramento(
         return;
       }
 
-      if (Date.now() - inicio >= limiteMs) {
+      if (
+        Date.now() - inicio >= limiteMs
+      ) {
         resolve(false);
         return;
       }
 
-      setTimeout(verificar, 250);
+      setTimeout(
+        verificar,
+        250
+      );
     };
 
     verificar();
   });
 }
 
-async function reiniciarBot() {
-  const statusAtual = obterStatusBot();
+async function reiniciarBot(idBot) {
+  const id = validarIdBot(idBot);
+  const bot = obterBot(id);
+
+  if (!bot) {
+    return {
+      sucesso: false,
+      mensagem: 'Bot não encontrado.'
+    };
+  }
+
+  const statusAtual = obterStatusBot(id);
 
   if (!statusAtual.online) {
-    return iniciarBot();
+    return iniciarBot(id);
   }
 
   const pidAnterior = statusAtual.pid;
 
   try {
-    process.kill(pidAnterior, 'SIGTERM');
+    process.kill(
+      pidAnterior,
+      'SIGTERM'
+    );
   } catch {
-    removerPid(pidAnterior);
+    removerPid(
+      id,
+      pidAnterior
+    );
 
     return {
       sucesso: false,
       mensagem:
-        'Não foi possível encerrar o RAVEX-BOT para reiniciá-lo.',
-      status: obterStatusBot()
+        `Não foi possível encerrar ${bot.nome} para reiniciá-lo.`,
+      status: obterStatusBot(id)
     };
   }
 
-  const encerrou = await esperarEncerramento(
-    pidAnterior
+  adicionarLogBot(
+    id,
+    'sistema',
+    `Reinício de ${bot.nome} solicitado.`
   );
+
+  const encerrou =
+    await esperarEncerramento(
+      pidAnterior
+    );
 
   if (!encerrou) {
     return {
       sucesso: false,
       mensagem:
-        'O RAVEX-BOT não encerrou dentro do tempo esperado.',
-      status: obterStatusBot()
+        `${bot.nome} não encerrou dentro do tempo esperado.`,
+      status: obterStatusBot(id)
     };
   }
 
-  removerPid(pidAnterior);
+  removerPid(
+    id,
+    pidAnterior
+  );
 
-  return iniciarBot();
+  return iniciarBot(id);
+}
+
+
+async function removerBotGerenciado(idBot) {
+  const id = validarIdBot(idBot);
+  const bot = obterBot(id);
+
+  if (!bot) {
+    return {
+      sucesso: false,
+      mensagem: 'Bot não encontrado.'
+    };
+  }
+
+  const status = obterStatusBot(id);
+
+  if (status.online) {
+    const resultadoParada = pararBot(id);
+
+    if (!resultadoParada.sucesso) {
+      return {
+        sucesso: false,
+        mensagem:
+          `Não foi possível parar ${bot.nome} antes da remoção.`
+      };
+    }
+
+    const encerrou = await esperarEncerramento(
+      status.pid
+    );
+
+    if (!encerrou) {
+      return {
+        sucesso: false,
+        mensagem:
+          `${bot.nome} não encerrou dentro do tempo esperado.`
+      };
+    }
+  }
+
+  removerPid(id);
+
+  const removido = removerBot(id);
+
+  estados.delete(id);
+
+  return {
+    sucesso: true,
+    mensagem:
+      `${removido.nome} foi removido do RAVEX-HOST.`,
+    bot: removido,
+    arquivosApagados: false
+  };
 }
 
 module.exports = {
   obterStatusBot,
+  listarStatusBots,
   iniciarBot,
   pararBot,
-  reiniciarBot
+  reiniciarBot,
+  removerBotGerenciado
 };

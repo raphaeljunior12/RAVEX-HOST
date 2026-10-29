@@ -3,7 +3,9 @@ const fs = require('fs');
 const path = require('path');
 
 const { obterStatusSistema } = require('../servicos/sistema');
-const { obterLogs } = require('../servicos/logsBot');
+const {
+  obterLogsBot
+} = require('../servicos/logsBot');
 const { autenticar } = require('../servicos/autenticacao');
 
 const {
@@ -15,10 +17,26 @@ const {
 
 const {
   obterStatusBot,
+  listarStatusBots,
   iniciarBot,
   pararBot,
-  reiniciarBot
+  reiniciarBot,
+  removerBotGerenciado
 } = require('../servicos/gerenciadorBot');
+
+const {
+  obterBot,
+  atualizarBot
+} = require('../servicos/registroBots');
+
+const {
+  adicionarPorDiretorio,
+  adicionarPorRepositorio
+} = require('../servicos/instaladorBots');
+
+const {
+  atualizarBotGit
+} = require('../servicos/atualizadorBots');
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT) || 3000;
@@ -313,80 +331,448 @@ function iniciarServidor() {
       );
     }
 
-    if (rota === '/api/bot/status' && req.method === 'GET') {
-      if (!exigirAutenticacao(req, res)) {
-        return;
-      }
-
-      return responderJSON(
-        res,
-        200,
-        obterStatusBot()
-      );
-    }
-
-    if (rota === '/api/bot/logs' && req.method === 'GET') {
+    if (rota === '/api/bots' && req.method === 'GET') {
       if (!exigirAutenticacao(req, res)) {
         return;
       }
 
       return responderJSON(res, 200, {
         sucesso: true,
-        logs: obterLogs()
+        bots: listarStatusBots()
       });
     }
 
-    if (rota === '/api/bot/iniciar' && req.method === 'POST') {
-      if (!exigirAutenticacao(req, res)) {
-        return;
-      }
-
-      const resultado = iniciarBot();
-
-      return responderJSON(
-        res,
-        resultado.sucesso ? 200 : 409,
-        resultado
-      );
-    }
-
-    if (rota === '/api/bot/parar' && req.method === 'POST') {
-      if (!exigirAutenticacao(req, res)) {
-        return;
-      }
-
-      const resultado = pararBot();
-
-      return responderJSON(
-        res,
-        resultado.sucesso ? 200 : 409,
-        resultado
-      );
-    }
-
-    if (rota === '/api/bot/reiniciar' && req.method === 'POST') {
+    if (rota === '/api/bots' && req.method === 'POST') {
       if (!exigirAutenticacao(req, res)) {
         return;
       }
 
       try {
-        const resultado = await reiniciarBot();
+        const corpo = await lerJSON(req);
 
-        return responderJSON(
-          res,
-          resultado.sucesso ? 200 : 409,
-          resultado
-        );
+        const tipo = String(
+          corpo.tipo || 'git'
+        ).trim().toLowerCase();
+
+        let bot;
+
+        if (tipo === 'diretorio') {
+          bot = adicionarPorDiretorio({
+            nome: corpo.nome,
+            diretorio: corpo.diretorio
+          });
+        } else if (tipo === 'git') {
+          bot = await adicionarPorRepositorio({
+            nome: corpo.nome,
+            repositorio: corpo.repositorio,
+            branch: corpo.branch || 'main'
+          });
+        } else {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem:
+              'Tipo de instalação inválido.'
+          });
+        }
+
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem: 'Bot adicionado com sucesso.',
+          bot
+        });
       } catch (erro) {
+        const errosCliente = {
+          NOME_INVALIDO:
+            'Nome do bot inválido.',
+          DIRETORIO_INVALIDO:
+            'Diretório do bot inválido.',
+          DIRETORIO_NAO_ENCONTRADO:
+            'Diretório do bot não encontrado.',
+          REPOSITORIO_INVALIDO:
+            'Repositório Git inválido.',
+          BRANCH_INVALIDA:
+            'Branch inválida.',
+          BOT_DUPLICADO:
+            'Este bot já está cadastrado.',
+          DIRETORIO_JA_EXISTE:
+            'Já existe uma instalação com este nome.',
+          PACKAGE_JSON_NAO_ENCONTRADO:
+            'A pasta/repositório não possui package.json.',
+          PACKAGE_JSON_INVALIDO:
+            'O package.json do bot é inválido.',
+          ARQUIVO_INICIAL_INVALIDO:
+            'Arquivo inicial do bot inválido.',
+          ARQUIVO_INICIAL_NAO_ENCONTRADO:
+            'Arquivo inicial do bot não encontrado.'
+        };
+
+        if (errosCliente[erro.message]) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem: errosCliente[erro.message]
+          });
+        }
+
         console.error(
-          '❌ Erro ao reiniciar RAVEX-BOT:',
+          '❌ Erro ao adicionar bot:',
           erro
         );
 
         return responderJSON(res, 500, {
           sucesso: false,
           mensagem:
-            'Erro interno ao reiniciar o RAVEX-BOT.'
+            'Não foi possível adicionar o bot.'
+        });
+      }
+    }
+
+    const rotaConfigurarBot = rota.match(
+      /^\/api\/bots\/([a-zA-Z0-9_-]{1,80})$/
+    );
+
+    if (
+      rotaConfigurarBot &&
+      req.method === 'PATCH'
+    ) {
+      if (!exigirAutenticacao(req, res)) {
+        return;
+      }
+
+      const idBot = rotaConfigurarBot[1];
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const botAtual = obterBot(idBot);
+
+        if (!botAtual) {
+          return responderJSON(res, 404, {
+            sucesso: false,
+            mensagem: 'Bot não encontrado.'
+          });
+        }
+
+        const status = obterStatusBot(idBot);
+
+        if (status.online) {
+          return responderJSON(res, 409, {
+            sucesso: false,
+            mensagem:
+              'Pare o bot antes de alterar a configuração.'
+          });
+        }
+
+        const bot = atualizarBot(idBot, {
+          nome: corpo.nome,
+          arquivoInicial: corpo.arquivoInicial,
+          repositorio: corpo.repositorio,
+          branch: corpo.branch
+        });
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem:
+            'Configuração atualizada com sucesso.',
+          bot
+        });
+      } catch (erro) {
+        const errosCliente = {
+          NOME_INVALIDO:
+            'Nome do bot inválido.',
+          ARQUIVO_INICIAL_INVALIDO:
+            'Arquivo inicial inválido.',
+          REPOSITORIO_INVALIDO:
+            'Repositório Git inválido.',
+          BRANCH_INVALIDA:
+            'Branch inválida.',
+          BOT_DUPLICADO:
+            'Já existe outro bot com este nome.'
+        };
+
+        if (errosCliente[erro.message]) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem: errosCliente[erro.message]
+          });
+        }
+
+        if (erro.message === 'BOT_NAO_ENCONTRADO') {
+          return responderJSON(res, 404, {
+            sucesso: false,
+            mensagem: 'Bot não encontrado.'
+          });
+        }
+
+        console.error(
+          '❌ Erro ao configurar bot:',
+          erro
+        );
+
+        return responderJSON(res, 500, {
+          sucesso: false,
+          mensagem:
+            'Não foi possível configurar o bot.'
+        });
+      }
+    }
+
+    const rotaRemoverBot = rota.match(
+      /^\/api\/bots\/([a-zA-Z0-9_-]{1,80})$/
+    );
+
+    if (
+      rotaRemoverBot &&
+      req.method === 'DELETE'
+    ) {
+      if (!exigirAutenticacao(req, res)) {
+        return;
+      }
+
+      const idBot = rotaRemoverBot[1];
+
+      try {
+        const resultado =
+          await removerBotGerenciado(idBot);
+
+        if (!resultado.sucesso) {
+          return responderJSON(res, 409, resultado);
+        }
+
+        return responderJSON(res, 200, resultado);
+      } catch (erro) {
+        if (
+          erro.message === 'BOT_NAO_ENCONTRADO'
+        ) {
+          return responderJSON(res, 404, {
+            sucesso: false,
+            mensagem: 'Bot não encontrado.'
+          });
+        }
+
+        console.error(
+          '❌ Erro ao remover bot:',
+          erro
+        );
+
+        return responderJSON(res, 500, {
+          sucesso: false,
+          mensagem:
+            'Não foi possível remover o bot.'
+        });
+      }
+    }
+
+    const rotaBot = rota.match(
+      /^\/api\/bots\/([a-zA-Z0-9_-]{1,80})\/(status|logs|iniciar|parar|reiniciar|atualizar|atualizar-reiniciar)$/
+    );
+
+    if (rotaBot) {
+      if (!exigirAutenticacao(req, res)) {
+        return;
+      }
+
+      const idBot = rotaBot[1];
+      const acao = rotaBot[2];
+
+      try {
+        if (
+          acao === 'status' &&
+          req.method === 'GET'
+        ) {
+          return responderJSON(
+            res,
+            200,
+            obterStatusBot(idBot)
+          );
+        }
+
+        if (
+          acao === 'logs' &&
+          req.method === 'GET'
+        ) {
+          return responderJSON(res, 200, {
+            sucesso: true,
+            logs: obterLogsBot(idBot)
+          });
+        }
+
+        if (
+          acao === 'iniciar' &&
+          req.method === 'POST'
+        ) {
+          const resultado = iniciarBot(idBot);
+
+          return responderJSON(
+            res,
+            resultado.sucesso ? 200 : 409,
+            resultado
+          );
+        }
+
+        if (
+          acao === 'parar' &&
+          req.method === 'POST'
+        ) {
+          const resultado = pararBot(idBot);
+
+          return responderJSON(
+            res,
+            resultado.sucesso ? 200 : 409,
+            resultado
+          );
+        }
+
+        if (
+          acao === 'reiniciar' &&
+          req.method === 'POST'
+        ) {
+          const resultado =
+            await reiniciarBot(idBot);
+
+          return responderJSON(
+            res,
+            resultado.sucesso ? 200 : 409,
+            resultado
+          );
+        }
+
+        if (
+          acao === 'atualizar' &&
+          req.method === 'POST'
+        ) {
+          const status = obterStatusBot(idBot);
+
+          if (status.online) {
+            return responderJSON(res, 409, {
+              sucesso: false,
+              mensagem:
+                'Pare o bot antes de atualizá-lo.'
+            });
+          }
+
+          const resultado =
+            await atualizarBotGit(idBot);
+
+          return responderJSON(
+            res,
+            200,
+            resultado
+          );
+        }
+
+        if (
+          acao === 'atualizar-reiniciar' &&
+          req.method === 'POST'
+        ) {
+          const statusAntes =
+            obterStatusBot(idBot);
+
+          if (statusAntes.online) {
+            const parada = pararBot(idBot);
+
+            if (!parada.sucesso) {
+              return responderJSON(
+                res,
+                409,
+                parada
+              );
+            }
+
+            const limite = Date.now() + 10000;
+
+            while (
+              obterStatusBot(idBot).online &&
+              Date.now() < limite
+            ) {
+              await new Promise(resolve =>
+                setTimeout(resolve, 250)
+              );
+            }
+
+            if (obterStatusBot(idBot).online) {
+              return responderJSON(res, 409, {
+                sucesso: false,
+                mensagem:
+                  'O bot não encerrou dentro do tempo esperado.'
+              });
+            }
+          }
+
+          await atualizarBotGit(idBot);
+
+          const resultado =
+            iniciarBot(idBot);
+
+          return responderJSON(
+            res,
+            resultado.sucesso ? 200 : 409,
+            resultado
+          );
+        }
+
+        return responderJSON(res, 405, {
+          sucesso: false,
+          mensagem:
+            'Método não permitido para esta rota.'
+        });
+      } catch (erro) {
+        if (
+          erro.message === 'BOT_NAO_ENCONTRADO'
+        ) {
+          return responderJSON(res, 404, {
+            sucesso: false,
+            mensagem: 'Bot não encontrado.'
+          });
+        }
+
+        if (
+          erro.message === 'BOT_SEM_REPOSITORIO'
+        ) {
+          return responderJSON(res, 409, {
+            sucesso: false,
+            mensagem:
+              'Este bot não possui repositório Git configurado.'
+          });
+        }
+
+        if (
+          erro.message === 'REPOSITORIO_GIT_NAO_ENCONTRADO'
+        ) {
+          return responderJSON(res, 409, {
+            sucesso: false,
+            mensagem:
+              'A pasta deste bot não é um repositório Git.'
+          });
+        }
+
+        if (
+          erro.message === 'DIRETORIO_NAO_ENCONTRADO'
+        ) {
+          return responderJSON(res, 404, {
+            sucesso: false,
+            mensagem:
+              'Diretório do bot não encontrado.'
+          });
+        }
+
+        if (
+          erro.message === 'ID_BOT_INVALIDO'
+        ) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem: 'ID do bot inválido.'
+          });
+        }
+
+        console.error(
+          `❌ Erro na ação ${acao} do bot ${idBot}:`,
+          erro
+        );
+
+        return responderJSON(res, 500, {
+          sucesso: false,
+          mensagem:
+            'Erro interno ao processar a ação do bot.'
         });
       }
     }

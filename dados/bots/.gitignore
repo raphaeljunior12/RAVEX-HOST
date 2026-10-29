@@ -1,0 +1,9 @@
+# Registro local dos bots
+registro.json
+registro.json.tmp
+
+# Bots instalados/clonados pelo RAVEX-HOST
+apps/
+
+# Arquivos de processo
+*.pid

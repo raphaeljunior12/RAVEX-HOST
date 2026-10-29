@@ -2,31 +2,56 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
   <title>RAVEX-HOST</title>
   <link rel="stylesheet" href="/css/painel.css">
 </head>
 <body>
-
   <header>
-    <h1>⚡ RAVEX-HOST</h1>
-    <p>Hospedagem & Gerenciamento</p>
-    <button id="sairPainel" type="button">🚪 Sair</button>
+    <div>
+      <h1>⚡ RAVEX-HOST</h1>
+      <p>Hospedagem & Gerenciamento</p>
+    </div>
+
+    <button id="sairPainel" type="button">
+      🚪 Sair
+    </button>
   </header>
 
   <main>
     <section>
-      <h2>📊 Dashboard</h2>
-      <p>🟢 Sistema Online</p>
+      <div class="titulo-linha">
+        <div>
+          <h2>📊 Dashboard</h2>
+          <p>🟢 Sistema Online</p>
+        </div>
+
+        <button
+          id="abrirAdicionarBot"
+          class="botao-destaque"
+          type="button"
+        >
+          ➕ Adicionar Bot
+        </button>
+      </div>
     </section>
 
     <section>
-      <h2>🤖 RAVEX-BOT</h2>
-      <p id="statusBot">Status: ⚫ Verificando...</p>
+      <div class="titulo-linha">
+        <div>
+          <h2>🤖 Gerenciador de Bots</h2>
+          <p id="resumoBots">
+            Carregando bots...
+          </p>
+        </div>
+      </div>
 
-      <button id="iniciarBot" type="button">▶ Iniciar</button>
-      <button id="pararBot" type="button">⏹ Parar</button>
-      <button id="reiniciarBot" type="button">🔄 Reiniciar</button>
+      <div id="listaBots" class="lista-bots">
+        <p>Carregando...</p>
+      </div>
     </section>
 
     <section>
@@ -38,12 +63,224 @@
     </section>
 
     <section>
-      <h2>📋 Logs</h2>
+      <div class="titulo-linha">
+        <div>
+          <h2>📋 Logs</h2>
+          <p id="botLogsSelecionado">
+            Selecione um bot.
+          </p>
+        </div>
+      </div>
+
       <div id="logsBot">
-        <p>Carregando logs...</p>
+        <p>Nenhum bot selecionado.</p>
       </div>
     </section>
   </main>
+
+  <div
+    id="modalAdicionarBot"
+    class="modal oculto"
+    aria-hidden="true"
+  >
+    <div class="modal-conteudo">
+      <div class="modal-cabecalho">
+        <div>
+          <h2>➕ Adicionar Bot</h2>
+          <p id="subtituloAdicionarBot">Instalar através de um repositório Git.</p>
+        </div>
+
+        <button
+          id="fecharAdicionarBot"
+          class="botao-fechar"
+          type="button"
+          aria-label="Fechar"
+        >
+          ✕
+        </button>
+      </div>
+
+      <form id="formAdicionarBot">
+        <label for="tipoBot">
+          Método de instalação
+        </label>
+
+        <select id="tipoBot" name="tipo">
+          <option value="git">
+            🌐 Repositório Git
+          </option>
+          <option value="diretorio">
+            📁 Pasta existente
+          </option>
+        </select>
+
+        <label for="nomeBot">
+          Nome do bot
+        </label>
+        <input
+          id="nomeBot"
+          name="nome"
+          type="text"
+          maxlength="60"
+          placeholder="Ex.: RAVEX-BOT"
+          required
+        >
+
+        <div id="camposGit">
+          <label for="repositorioBot">
+            Repositório Git
+          </label>
+          <input
+            id="repositorioBot"
+            name="repositorio"
+            type="text"
+            maxlength="500"
+            placeholder="https://github.com/usuario/bot.git"
+          >
+
+          <label for="branchBot">
+            Branch
+          </label>
+          <input
+            id="branchBot"
+            name="branch"
+            type="text"
+            maxlength="120"
+            value="main"
+          >
+        </div>
+
+        <div id="camposDiretorio" class="oculto">
+          <label for="diretorioBot">
+            Caminho da pasta
+          </label>
+          <input
+            id="diretorioBot"
+            name="diretorio"
+            type="text"
+            maxlength="500"
+            placeholder="/storage/emulated/0/Download/MEU-BOT"
+          >
+
+          <p class="ajuda-campo">
+            O RAVEX-HOST não moverá nem apagará esta pasta.
+          </p>
+        </div>
+
+        <p id="mensagemAdicionarBot"></p>
+
+        <button
+          id="confirmarAdicionarBot"
+          class="botao-destaque"
+          type="submit"
+        >
+          📥 Adicionar Bot
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div
+    id="modalConfigurarBot"
+    class="modal oculto"
+    aria-hidden="true"
+  >
+    <div class="modal-conteudo">
+      <div class="modal-cabecalho">
+        <div>
+          <h2>⚙️ Configurar Bot</h2>
+          <p>
+            Ajuste os dados utilizados pelo RAVEX-HOST.
+          </p>
+        </div>
+
+        <button
+          id="fecharConfigurarBot"
+          class="botao-fechar"
+          type="button"
+          aria-label="Fechar"
+        >
+          ✕
+        </button>
+      </div>
+
+      <form id="formConfigurarBot">
+        <label for="configNomeBot">
+          Nome do bot
+        </label>
+
+        <input
+          id="configNomeBot"
+          type="text"
+          maxlength="60"
+          required
+        >
+
+        <label for="configDiretorioBot">
+          Diretório
+        </label>
+
+        <input
+          id="configDiretorioBot"
+          type="text"
+          readonly
+        >
+
+        <p class="ajuda-campo">
+          O diretório não será alterado.
+        </p>
+
+        <label for="configArquivoInicial">
+          Arquivo inicial
+        </label>
+
+        <input
+          id="configArquivoInicial"
+          type="text"
+          maxlength="120"
+          placeholder="iniciar.js"
+          required
+        >
+
+        <label for="configRepositorioBot">
+          Repositório Git
+        </label>
+
+        <input
+          id="configRepositorioBot"
+          type="text"
+          maxlength="500"
+          placeholder="https://github.com/usuario/bot.git"
+        >
+
+        <p class="ajuda-campo">
+          Deixe vazio se o bot não utiliza Git.
+        </p>
+
+        <label for="configBranchBot">
+          Branch
+        </label>
+
+        <input
+          id="configBranchBot"
+          type="text"
+          maxlength="120"
+          value="main"
+          required
+        >
+
+        <p id="mensagemConfigurarBot"></p>
+
+        <button
+          id="confirmarConfigurarBot"
+          class="botao-destaque"
+          type="submit"
+        >
+          💾 Salvar configuração
+        </button>
+      </form>
+    </div>
+  </div>
 
   <script src="/js/painel.js"></script>
 </body>

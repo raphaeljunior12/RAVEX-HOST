@@ -11,12 +11,9 @@ const DIRETORIO_LOGS = path.resolve(
   'logs'
 );
 
-const ARQUIVO_LOGS = path.join(
-  DIRETORIO_LOGS,
-  'ravex-bot.log'
-);
+const ID_LEGADO = 'ravex-bot';
 
-const logs = [];
+const logsPorBot = new Map();
 
 function garantirDiretorioLogs() {
   fs.mkdirSync(DIRETORIO_LOGS, {
@@ -24,22 +21,65 @@ function garantirDiretorioLogs() {
   });
 }
 
-function limitarLogs() {
+function validarIdBot(idBot) {
+  const id = String(idBot || '').trim();
+
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id)) {
+    throw new Error('ID_BOT_INVALIDO');
+  }
+
+  return id;
+}
+
+function obterArquivoLog(idBot) {
+  const id = validarIdBot(idBot);
+
+  return path.join(
+    DIRETORIO_LOGS,
+    `${id}.log`
+  );
+}
+
+function obterMemoria(idBot) {
+  const id = validarIdBot(idBot);
+
+  if (!logsPorBot.has(id)) {
+    logsPorBot.set(id, []);
+  }
+
+  return logsPorBot.get(id);
+}
+
+function limitarLogs(logs) {
   if (logs.length > LIMITE_LOGS) {
-    logs.splice(0, logs.length - LIMITE_LOGS);
+    logs.splice(
+      0,
+      logs.length - LIMITE_LOGS
+    );
   }
 }
 
-function carregarLogs() {
+function carregarLogsBot(idBot) {
+  const id = validarIdBot(idBot);
+
+  if (logsPorBot.has(id)) {
+    return logsPorBot.get(id);
+  }
+
+  const logs = [];
+  logsPorBot.set(id, logs);
+
   garantirDiretorioLogs();
 
+  const arquivo = obterArquivoLog(id);
+
   try {
-    if (!fs.existsSync(ARQUIVO_LOGS)) {
-      return;
+    if (!fs.existsSync(arquivo)) {
+      return logs;
     }
 
     const conteudo = fs.readFileSync(
-      ARQUIVO_LOGS,
+      arquivo,
       'utf8'
     );
 
@@ -61,66 +101,78 @@ function carregarLogs() {
           logs.push(log);
         }
       } catch {
-        // Ignora linhas inválidas sem derrubar o HOST.
+        // Linha inválida não derruba o RAVEX-HOST.
       }
     }
 
-    limitarLogs();
+    limitarLogs(logs);
+
+    return logs;
   } catch (erro) {
     console.error(
-      '❌ Erro ao carregar logs do RAVEX-BOT:',
+      `❌ Erro ao carregar logs do bot ${id}:`,
       erro.message
     );
+
+    return logs;
   }
 }
 
-function persistirLog(log) {
+function persistirLog(idBot, log) {
+  const id = validarIdBot(idBot);
+  const arquivo = obterArquivoLog(id);
+
   try {
     garantirDiretorioLogs();
 
     fs.appendFileSync(
-      ARQUIVO_LOGS,
+      arquivo,
       `${JSON.stringify(log)}\n`,
       'utf8'
     );
 
     const conteudo = fs.readFileSync(
-      ARQUIVO_LOGS,
+      arquivo,
       'utf8'
     );
 
-    const quantidadeLinhas = conteudo
+    const linhas = conteudo
       .split('\n')
-      .filter(Boolean)
-      .length;
+      .filter(Boolean);
 
-    if (quantidadeLinhas > LIMITE_LOGS) {
-      const conteudoCompactado = logs
+    if (linhas.length > LIMITE_LOGS) {
+      const logs = obterMemoria(id)
+        .slice(-LIMITE_LOGS);
+
+      const compactado = logs
         .map(item => JSON.stringify(item))
         .join('\n');
 
       fs.writeFileSync(
-        ARQUIVO_LOGS,
-        conteudoCompactado
-          ? `${conteudoCompactado}\n`
+        arquivo,
+        compactado
+          ? `${compactado}\n`
           : '',
         'utf8'
       );
     }
   } catch (erro) {
     console.error(
-      '❌ Erro ao salvar log do RAVEX-BOT:',
+      `❌ Erro ao salvar log do bot ${id}:`,
       erro.message
     );
   }
 }
 
-function adicionarLog(tipo, mensagem) {
+function adicionarLogBot(idBot, tipo, mensagem) {
+  const id = validarIdBot(idBot);
   const texto = String(mensagem || '').trim();
 
   if (!texto) {
     return;
   }
+
+  const logs = carregarLogsBot(id);
 
   const log = {
     tipo: String(tipo || 'stdout'),
@@ -129,29 +181,37 @@ function adicionarLog(tipo, mensagem) {
   };
 
   logs.push(log);
-  limitarLogs();
-  persistirLog(log);
+  limitarLogs(logs);
+
+  persistirLog(id, log);
 }
 
-function obterLogs() {
-  return [...logs];
+function obterLogsBot(idBot) {
+  const id = validarIdBot(idBot);
+
+  return [
+    ...carregarLogsBot(id)
+  ];
 }
 
-function limparLogs() {
+function limparLogsBot(idBot) {
+  const id = validarIdBot(idBot);
+  const logs = obterMemoria(id);
+
   logs.length = 0;
 
   try {
     garantirDiretorioLogs();
 
     fs.writeFileSync(
-      ARQUIVO_LOGS,
+      obterArquivoLog(id),
       '',
       'utf8'
     );
 
     return {
       sucesso: true,
-      mensagem: 'Logs do RAVEX-BOT limpos.'
+      mensagem: `Logs do bot ${id} limpos.`
     };
   } catch (erro) {
     return {
@@ -162,9 +222,32 @@ function limparLogs() {
   }
 }
 
-carregarLogs();
+/*
+ * Compatibilidade temporária com o RAVEX-HOST V1.
+ * Essas funções serão removidas depois que todas as rotas
+ * estiverem usando IDs de bots.
+ */
+function adicionarLog(tipo, mensagem) {
+  return adicionarLogBot(
+    ID_LEGADO,
+    tipo,
+    mensagem
+  );
+}
+
+function obterLogs() {
+  return obterLogsBot(ID_LEGADO);
+}
+
+function limparLogs() {
+  return limparLogsBot(ID_LEGADO);
+}
 
 module.exports = {
+  adicionarLogBot,
+  obterLogsBot,
+  limparLogsBot,
+
   adicionarLog,
   obterLogs,
   limparLogs

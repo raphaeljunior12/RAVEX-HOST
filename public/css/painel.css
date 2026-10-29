@@ -197,3 +197,382 @@ button:active {
     padding: 20px 16px;
   }
 }
+
+/* Interface multi-bot V2 */
+.titulo-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.botao-destaque {
+  border-color: var(--destaque);
+  background: var(--destaque);
+  color: #fff;
+}
+
+.lista-bots {
+  display: grid;
+  gap: 14px;
+}
+
+.cartao-bot {
+  padding: 16px;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+}
+
+.cartao-bot.selecionado {
+  border-color: var(--destaque);
+}
+
+.bot-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.bot-cabecalho h3 {
+  margin-bottom: 5px;
+}
+
+.bot-cabecalho p {
+  margin: 0;
+}
+
+.status-online {
+  color: var(--verde) !important;
+}
+
+.status-offline {
+  color: var(--vermelho) !important;
+}
+
+.acoes-bot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.acoes-bot button {
+  margin: 0;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.modal.oculto {
+  display: none;
+}
+
+.modal-conteudo {
+  width: min(100%, 520px);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px;
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+}
+
+.modal-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.modal-cabecalho p {
+  margin-top: 6px;
+  color: var(--secundario);
+}
+
+.botao-fechar {
+  margin: 0;
+  align-self: flex-start;
+}
+
+#formAdicionarBot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#formAdicionarBot label {
+  margin-top: 5px;
+  color: var(--secundario);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#formAdicionarBot input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  outline: none;
+  background: var(--fundo);
+  color: var(--texto);
+  font-size: 16px;
+}
+
+#formAdicionarBot input:focus {
+  border-color: var(--destaque);
+}
+
+#mensagemAdicionarBot {
+  min-height: 22px;
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+#mensagemAdicionarBot.erro {
+  color: var(--vermelho);
+}
+
+#mensagemAdicionarBot.sucesso {
+  color: var(--verde);
+}
+
+@media (max-width: 600px) {
+  .titulo-linha,
+  .bot-cabecalho {
+    flex-direction: column;
+  }
+
+  .titulo-linha > button {
+    width: 100%;
+  }
+
+  .acoes-bot {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .acoes-bot button {
+    width: 100%;
+  }
+}
+
+/* Interface multi-bot V2 */
+.titulo-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.botao-destaque {
+  border-color: var(--destaque);
+  background: var(--destaque);
+  color: #fff;
+}
+
+.lista-bots {
+  display: grid;
+  gap: 14px;
+}
+
+.cartao-bot {
+  padding: 16px;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+}
+
+.cartao-bot.selecionado {
+  border-color: var(--destaque);
+}
+
+.bot-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.bot-cabecalho h3 {
+  margin-bottom: 5px;
+}
+
+.bot-cabecalho p {
+  margin: 0;
+}
+
+.status-online {
+  color: var(--verde) !important;
+}
+
+.status-offline {
+  color: var(--vermelho) !important;
+}
+
+.acoes-bot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.acoes-bot button {
+  margin: 0;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.modal.oculto {
+  display: none;
+}
+
+.modal-conteudo {
+  width: min(100%, 520px);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px;
+  background: var(--painel);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+}
+
+.modal-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.modal-cabecalho p {
+  margin-top: 6px;
+  color: var(--secundario);
+}
+
+.botao-fechar {
+  margin: 0;
+  align-self: flex-start;
+}
+
+#formAdicionarBot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#formAdicionarBot label {
+  margin-top: 5px;
+  color: var(--secundario);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#formAdicionarBot input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  outline: none;
+  background: var(--fundo);
+  color: var(--texto);
+  font-size: 16px;
+}
+
+#formAdicionarBot input:focus {
+  border-color: var(--destaque);
+}
+
+#mensagemAdicionarBot {
+  min-height: 22px;
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+#mensagemAdicionarBot.erro {
+  color: var(--vermelho);
+}
+
+#mensagemAdicionarBot.sucesso {
+  color: var(--verde);
+}
+
+@media (max-width: 600px) {
+  .titulo-linha,
+  .bot-cabecalho {
+    flex-direction: column;
+  }
+
+  .titulo-linha > button {
+    width: 100%;
+  }
+
+  .acoes-bot {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .acoes-bot button {
+    width: 100%;
+  }
+}
+
+#formAdicionarBot select {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  outline: none;
+  background: var(--fundo);
+  color: var(--texto);
+  font-size: 16px;
+}
+
+#formAdicionarBot select:focus {
+  border-color: var(--destaque);
+}
+
+#camposGit,
+#camposDiretorio {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#camposGit.oculto,
+#camposDiretorio.oculto {
+  display: none;
+}
+
+.ajuda-campo {
+  margin: 0 !important;
+  font-size: 13px;
+}
+
+.botao-remover {
+  border: 1px solid #dc3545;
+  background: transparent;
+  color: #dc3545;
+}
+
+.botao-remover:hover:not(:disabled) {
+  background: #dc3545;
+  color: #fff;
+}

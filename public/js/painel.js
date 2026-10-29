@@ -15,7 +15,29 @@ function formatarUptime(segundos) {
   return `${dias}d ${horas}h ${minutos}m`;
 }
 
-async function atualizarStatus() {
+let bots = [];
+
+let idBotSelecionado =
+  localStorage.getItem('ravexHostBotSelecionado') || null;
+
+let acaoEmAndamento = false;
+
+function selecionarBot(idBot) {
+  idBotSelecionado = idBot || null;
+
+  if (idBotSelecionado) {
+    localStorage.setItem(
+      'ravexHostBotSelecionado',
+      idBotSelecionado
+    );
+  } else {
+    localStorage.removeItem(
+      'ravexHostBotSelecionado'
+    );
+  }
+}
+
+async function atualizarStatusSistema() {
   try {
     const resposta = await fetch('/api/status', {
       cache: 'no-store'
@@ -31,49 +53,281 @@ async function atualizarStatus() {
 
     const dados = await resposta.json();
 
-    const cpu = document.getElementById('cpu');
-    const memoria = document.getElementById('memoria');
-    const uptimeHost = document.getElementById('uptimeHost');
-    const uptimeSistema = document.getElementById('uptimeSistema');
+    document.getElementById('cpu').textContent =
+      `⚙️ CPU: ${dados.cpus || '--'} núcleos`;
 
-    if (cpu) {
-      cpu.textContent = dados.cpus
-        ? `⚙️ CPU: ${dados.cpus} núcleos`
-        : '⚙️ CPU: indisponível';
-    }
+    document.getElementById('memoria').textContent =
+      `🧠 Memória: ${dados.memoria.usadaMB} MB / ${dados.memoria.totalMB} MB`;
 
-    if (memoria) {
-      memoria.textContent =
-        `🧠 Memória: ${dados.memoria.usadaMB} MB / ${dados.memoria.totalMB} MB`;
-    }
+    document.getElementById('uptimeHost').textContent =
+      `⚡ RAVEX-HOST: ${formatarUptime(dados.uptimeHostSegundos)}`;
 
-    if (uptimeHost) {
-      uptimeHost.textContent =
-        `⚡ RAVEX-HOST: ${formatarUptime(dados.uptimeHostSegundos)}`;
-    }
-
-    if (uptimeSistema) {
-      uptimeSistema.textContent =
-        `📱 Sistema: ${formatarUptime(dados.uptimeSistemaSegundos)}`;
-    }
+    document.getElementById('uptimeSistema').textContent =
+      `📱 Sistema: ${formatarUptime(dados.uptimeSistemaSegundos)}`;
   } catch (erro) {
-    console.error('Erro ao obter status do RAVEX-HOST:', erro);
+    console.error(
+      'Erro ao obter status do sistema:',
+      erro
+    );
   }
 }
 
-atualizarStatus();
+function obterBotSelecionado() {
+  return bots.find(
+    bot => bot.id === idBotSelecionado
+  ) || null;
+}
 
-setInterval(atualizarStatus, 5000);
+function criarBotao(texto, acao, bot, desativado) {
+  const botao = document.createElement('button');
 
-async function atualizarStatusBot() {
-  const elemento = document.getElementById('statusBot');
+  botao.type = 'button';
+  botao.textContent = texto;
+  botao.disabled = desativado;
 
-  if (!elemento) {
+  botao.addEventListener('click', async evento => {
+    evento.stopPropagation();
+    await executarAcao(bot.id, acao);
+  });
+
+  return botao;
+}
+
+function renderizarBots() {
+  const lista = document.getElementById('listaBots');
+  const resumo = document.getElementById('resumoBots');
+
+  lista.replaceChildren();
+
+  const online = bots.filter(bot => bot.online).length;
+
+  resumo.textContent =
+    `${bots.length} bot(s) cadastrado(s) • ${online} online`;
+
+  if (bots.length === 0) {
+    const vazio = document.createElement('p');
+    vazio.textContent =
+      'Nenhum bot cadastrado. Use “Adicionar Bot”.';
+    lista.appendChild(vazio);
+
+    selecionarBot(null);
+    atualizarTituloLogs();
     return;
   }
 
+  if (
+    !idBotSelecionado ||
+    !bots.some(bot => bot.id === idBotSelecionado)
+  ) {
+    selecionarBot(bots[0].id);
+  }
+
+  for (const bot of bots) {
+    const cartao = document.createElement('article');
+    cartao.className = 'cartao-bot';
+
+    if (bot.id === idBotSelecionado) {
+      cartao.classList.add('selecionado');
+    }
+
+    cartao.addEventListener('click', () => {
+      selecionarBot(bot.id);
+      renderizarBots();
+      atualizarTituloLogs();
+      atualizarLogs();
+    });
+
+    const cabecalho = document.createElement('div');
+    cabecalho.className = 'bot-cabecalho';
+
+    const info = document.createElement('div');
+
+    const nome = document.createElement('h3');
+    nome.textContent = `🤖 ${bot.nome}`;
+
+    const estado = document.createElement('p');
+    estado.className = bot.online
+      ? 'status-online'
+      : 'status-offline';
+
+    estado.textContent = bot.online
+      ? `🟢 ONLINE • PID ${bot.pid || '--'}`
+      : '🔴 OFFLINE';
+
+    info.append(nome, estado);
+
+    const identificador = document.createElement('small');
+    identificador.textContent = `ID: ${bot.id}`;
+
+    cabecalho.append(info, identificador);
+
+    const acoes = document.createElement('div');
+    acoes.className = 'acoes-bot';
+
+    acoes.append(
+      criarBotao(
+        bot.online ? '✅ Online' : '▶ Iniciar',
+        'iniciar',
+        bot,
+        bot.online || acaoEmAndamento
+      ),
+      criarBotao(
+        '⏹ Parar',
+        'parar',
+        bot,
+        !bot.online || acaoEmAndamento
+      ),
+      criarBotao(
+        '🔄 Reiniciar',
+        'reiniciar',
+        bot,
+        acaoEmAndamento
+      )
+    );
+
+    const botaoRemover =
+      document.createElement('button');
+
+    botaoRemover.type = 'button';
+    botaoRemover.className = 'botao-remover';
+    botaoRemover.textContent = '🗑️ Remover';
+    botaoRemover.disabled = acaoEmAndamento;
+
+    botaoRemover.addEventListener(
+      'click',
+      async evento => {
+        evento.stopPropagation();
+        await removerBotPainel(bot);
+      }
+    );
+
+    const botaoConfigurar =
+      document.createElement('button');
+
+    botaoConfigurar.type = 'button';
+    botaoConfigurar.className = 'botao-configurar';
+    botaoConfigurar.textContent = '⚙️ Configurar';
+    botaoConfigurar.disabled =
+      bot.online || acaoEmAndamento;
+
+    botaoConfigurar.addEventListener(
+      'click',
+      evento => {
+        evento.stopPropagation();
+        abrirConfiguracaoBot(bot);
+      }
+    );
+
+    const possuiGit = Boolean(bot.repositorio);
+
+    const botaoAtualizar =
+      document.createElement('button');
+
+    botaoAtualizar.type = 'button';
+    botaoAtualizar.className = 'botao-atualizar';
+    botaoAtualizar.textContent = '⬇️ Atualizar';
+
+    botaoAtualizar.disabled =
+      !possuiGit ||
+      bot.online ||
+      acaoEmAndamento;
+
+    botaoAtualizar.title = !possuiGit
+      ? 'Este bot não possui repositório Git.'
+      : bot.online
+        ? 'Pare o bot antes de atualizar.'
+        : 'Atualizar pelo Git.';
+
+    botaoAtualizar.addEventListener(
+      'click',
+      async evento => {
+        evento.stopPropagation();
+
+        await executarAcao(
+          bot.id,
+          'atualizar'
+        );
+      }
+    );
+
+    const botaoAtualizarReiniciar =
+      document.createElement('button');
+
+    botaoAtualizarReiniciar.type = 'button';
+    botaoAtualizarReiniciar.className =
+      'botao-atualizar-reiniciar';
+
+    botaoAtualizarReiniciar.textContent =
+      '⬇️🔄 Atualizar + Reiniciar';
+
+    botaoAtualizarReiniciar.disabled =
+      !possuiGit || acaoEmAndamento;
+
+    botaoAtualizarReiniciar.title =
+      !possuiGit
+        ? 'Este bot não possui repositório Git.'
+        : 'Atualizar pelo Git e reiniciar.';
+
+    botaoAtualizarReiniciar.addEventListener(
+      'click',
+      async evento => {
+        evento.stopPropagation();
+
+        await executarAcao(
+          bot.id,
+          'atualizar-reiniciar'
+        );
+      }
+    );
+
+    const botaoLogs =
+      document.createElement('button');
+
+    botaoLogs.type = 'button';
+    botaoLogs.className = 'botao-logs';
+    botaoLogs.textContent = '📋 Ver Logs';
+
+    botaoLogs.addEventListener(
+      'click',
+      async evento => {
+        evento.stopPropagation();
+
+        selecionarBot(bot.id);
+
+        renderizarBots();
+        atualizarTituloLogs();
+        await atualizarLogs();
+
+        const secaoLogs =
+          document.getElementById('secaoLogs');
+
+        if (secaoLogs) {
+          secaoLogs.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      }
+    );
+
+    acoes.append(
+      botaoLogs,
+      botaoConfigurar,
+      botaoAtualizar,
+      botaoAtualizarReiniciar,
+      botaoRemover
+    );
+
+    cartao.append(cabecalho, acoes);
+    lista.appendChild(cartao);
+  }
+
+  atualizarTituloLogs();
+}
+
+async function carregarBots() {
   try {
-    const resposta = await fetch('/api/bot/status', {
+    const resposta = await fetch('/api/bots', {
       cache: 'no-store'
     });
 
@@ -85,160 +339,229 @@ async function atualizarStatusBot() {
       throw new Error(`HTTP ${resposta.status}`);
     }
 
-    const bot = await resposta.json();
+    const resultado = await resposta.json();
 
-    if (bot.online) {
-      elemento.textContent = 'Status: 🟢 ONLINE';
+    bots = Array.isArray(resultado.bots)
+      ? resultado.bots
+      : [];
 
-      const botao = document.getElementById('iniciarBot');
-
-      if (botao) {
-        botao.disabled = true;
-        botao.textContent = '✅ Online';
-      }
-
-      const botaoParar = document.getElementById('pararBot');
-
-      if (botaoParar) {
-        botaoParar.disabled = false;
-        botaoParar.textContent = '⏹ Parar';
-      }
-    } else {
-      elemento.textContent = 'Status: 🔴 OFFLINE';
-
-      const botao = document.getElementById('iniciarBot');
-
-      if (botao) {
-        botao.disabled = false;
-        botao.textContent = '▶ Iniciar';
-      }
-
-      const botaoParar = document.getElementById('pararBot');
-
-      if (botaoParar) {
-        botaoParar.disabled = true;
-        botaoParar.textContent = '⏹ Parar';
-      }
-    }
+    renderizarBots();
   } catch (erro) {
-    elemento.textContent = 'Status: ⚠️ Indisponível';
-    console.error('Erro ao consultar o RAVEX-BOT:', erro);
+    console.error('Erro ao carregar bots:', erro);
+
+    const resumo = document.getElementById('resumoBots');
+
+    resumo.textContent =
+      '⚠️ Não foi possível carregar os bots.';
   }
 }
 
-atualizarStatusBot();
+const modalConfigurar =
+  document.getElementById('modalConfigurarBot');
 
-setInterval(atualizarStatusBot, 5000);
+const fecharConfigurar =
+  document.getElementById('fecharConfigurarBot');
 
-const botaoIniciarBot = document.getElementById('iniciarBot');
+const formConfigurar =
+  document.getElementById('formConfigurarBot');
 
-async function iniciarBotPeloPainel() {
-  if (!botaoIniciarBot) {
+const mensagemConfigurar =
+  document.getElementById('mensagemConfigurarBot');
+
+let idBotConfigurando = null;
+
+function definirModalConfigurar(aberto) {
+  modalConfigurar.classList.toggle(
+    'oculto',
+    !aberto
+  );
+
+  modalConfigurar.setAttribute(
+    'aria-hidden',
+    String(!aberto)
+  );
+
+  if (!aberto) {
+    idBotConfigurando = null;
+  }
+}
+
+function abrirConfiguracaoBot(bot) {
+  if (bot.online) {
+    alert(
+      'Pare o bot antes de alterar a configuração.'
+    );
     return;
   }
 
-  botaoIniciarBot.disabled = true;
-  botaoIniciarBot.textContent = '⏳ Iniciando...';
+  idBotConfigurando = bot.id;
 
-  try {
-    const resposta = await fetch('/api/bot/iniciar', {
-      method: 'POST',
-      cache: 'no-store'
-    });
+  document.getElementById(
+    'configNomeBot'
+  ).value = bot.nome || '';
 
-    if (verificarSessaoExpirada(resposta)) {
+  document.getElementById(
+    'configDiretorioBot'
+  ).value = bot.diretorio || '';
+
+  document.getElementById(
+    'configArquivoInicial'
+  ).value = bot.arquivoInicial || 'iniciar.js';
+
+  document.getElementById(
+    'configRepositorioBot'
+  ).value = bot.repositorio || '';
+
+  document.getElementById(
+    'configBranchBot'
+  ).value = bot.branch || 'main';
+
+  mensagemConfigurar.textContent = '';
+  mensagemConfigurar.className = '';
+
+  definirModalConfigurar(true);
+
+  document.getElementById(
+    'configNomeBot'
+  ).focus();
+}
+
+fecharConfigurar.addEventListener(
+  'click',
+  () => definirModalConfigurar(false)
+);
+
+modalConfigurar.addEventListener(
+  'click',
+  evento => {
+    if (evento.target === modalConfigurar) {
+      definirModalConfigurar(false);
+    }
+  }
+);
+
+formConfigurar.addEventListener(
+  'submit',
+  async evento => {
+    evento.preventDefault();
+
+    if (!idBotConfigurando) {
       return;
     }
 
-    const resultado = await resposta.json();
+    const botao =
+      document.getElementById(
+        'confirmarConfigurarBot'
+      );
 
-    if (!resposta.ok && !resultado.status?.online) {
-      throw new Error(resultado.mensagem || `HTTP ${resposta.status}`);
-    }
+    const corpo = {
+      nome: document.getElementById(
+        'configNomeBot'
+      ).value.trim(),
 
-    await atualizarStatusBot();
-  } catch (erro) {
-    console.error('Erro ao iniciar o RAVEX-BOT:', erro);
-    alert(`Não foi possível iniciar o RAVEX-BOT: ${erro.message}`);
-  } finally {
-    const status = await fetch('/api/bot/status', {
-      cache: 'no-store'
-    }).then((resposta) => {
+      arquivoInicial: document.getElementById(
+        'configArquivoInicial'
+      ).value.trim(),
+
+      repositorio: document.getElementById(
+        'configRepositorioBot'
+      ).value.trim(),
+
+      branch: document.getElementById(
+        'configBranchBot'
+      ).value.trim()
+    };
+
+    botao.disabled = true;
+    botao.textContent = '⏳ Salvando...';
+
+    mensagemConfigurar.className = '';
+    mensagemConfigurar.textContent =
+      'Salvando configuração...';
+
+    try {
+      const resposta = await fetch(
+        `/api/bots/${encodeURIComponent(
+          idBotConfigurando
+        )}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(corpo)
+        }
+      );
+
       if (verificarSessaoExpirada(resposta)) {
-        return null;
+        return;
       }
 
-      return resposta.json();
-    }).catch(() => null);
+      const resultado =
+        await resposta.json();
 
-    if (status?.online) {
-      botaoIniciarBot.disabled = true;
-      botaoIniciarBot.textContent = '✅ Online';
-    } else {
-      botaoIniciarBot.disabled = false;
-      botaoIniciarBot.textContent = '▶ Iniciar';
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.mensagem ||
+          `HTTP ${resposta.status}`
+        );
+      }
+
+      mensagemConfigurar.className =
+        'sucesso';
+
+      mensagemConfigurar.textContent =
+        '✅ Configuração salva com sucesso.';
+
+      await carregarBots();
+
+      setTimeout(() => {
+        definirModalConfigurar(false);
+      }, 700);
+    } catch (erro) {
+      mensagemConfigurar.className =
+        'erro';
+
+      mensagemConfigurar.textContent =
+        `❌ ${erro.message}`;
+
+      console.error(
+        'Erro ao configurar bot:',
+        erro
+      );
+    } finally {
+      botao.disabled = false;
+      botao.textContent =
+        '💾 Salvar configuração';
     }
   }
-}
+);
 
-if (botaoIniciarBot) {
-  botaoIniciarBot.addEventListener('click', iniciarBotPeloPainel);
-}
-
-const botaoPararBot = document.getElementById('pararBot');
-
-async function pararBotPeloPainel() {
-  if (!botaoPararBot) {
+async function removerBotPainel(bot) {
+  if (acaoEmAndamento) {
     return;
   }
 
-  botaoPararBot.disabled = true;
-  botaoPararBot.textContent = '⏳ Parando...';
+  const confirmar = window.confirm(
+    `Remover "${bot.nome}" do RAVEX-HOST?\n\n` +
+    'Se estiver online, o bot será encerrado.\n' +
+    'Os arquivos da pasta NÃO serão apagados.'
+  );
 
-  try {
-    const resposta = await fetch('/api/bot/parar', {
-      method: 'POST',
-      cache: 'no-store'
-    });
-
-    if (verificarSessaoExpirada(resposta)) {
-      return;
-    }
-
-    const resultado = await resposta.json();
-
-    if (!resposta.ok && resultado.status?.online !== false) {
-      throw new Error(resultado.mensagem || `HTTP ${resposta.status}`);
-    }
-
-    await atualizarStatusBot();
-  } catch (erro) {
-    console.error('Erro ao parar o RAVEX-BOT:', erro);
-    alert(`Não foi possível parar o RAVEX-BOT: ${erro.message}`);
-  } finally {
-    await atualizarStatusBot();
-  }
-}
-
-if (botaoPararBot) {
-  botaoPararBot.addEventListener('click', pararBotPeloPainel);
-}
-
-const botaoReiniciarBot = document.getElementById('reiniciarBot');
-
-async function reiniciarBotPeloPainel() {
-  if (!botaoReiniciarBot) {
+  if (!confirmar) {
     return;
   }
 
-  botaoReiniciarBot.disabled = true;
-  botaoReiniciarBot.textContent = '⏳ Reiniciando...';
+  acaoEmAndamento = true;
+  renderizarBots();
 
   try {
-    const resposta = await fetch('/api/bot/reiniciar', {
-      method: 'POST',
-      cache: 'no-store'
-    });
+    const resposta = await fetch(
+      `/api/bots/${encodeURIComponent(bot.id)}`,
+      {
+        method: 'DELETE'
+      }
+    );
 
     if (verificarSessaoExpirada(resposta)) {
       return;
@@ -247,34 +570,112 @@ async function reiniciarBotPeloPainel() {
     const resultado = await resposta.json();
 
     if (!resposta.ok) {
-      throw new Error(resultado.mensagem || `HTTP ${resposta.status}`);
+      throw new Error(
+        resultado.mensagem ||
+        `HTTP ${resposta.status}`
+      );
     }
 
-    await atualizarStatusBot();
-  } catch (erro) {
-    console.error('Erro ao reiniciar o RAVEX-BOT:', erro);
-    alert(`Não foi possível reiniciar o RAVEX-BOT: ${erro.message}`);
-  } finally {
-    botaoReiniciarBot.disabled = false;
-    botaoReiniciarBot.textContent = '🔄 Reiniciar';
+    if (idBotSelecionado === bot.id) {
+      selecionarBot(null);
+    }
 
-    await atualizarStatusBot();
+    await carregarBots();
+    await atualizarLogs();
+
+    window.alert(
+      `${bot.nome} foi removido do RAVEX-HOST.\n\n` +
+      'Os arquivos originais foram preservados.'
+    );
+  } catch (erro) {
+    console.error(
+      'Erro ao remover bot:',
+      erro
+    );
+
+    window.alert(
+      `Não foi possível remover o bot:\n${erro.message}`
+    );
+  } finally {
+    acaoEmAndamento = false;
+    await carregarBots();
   }
 }
 
-if (botaoReiniciarBot) {
-  botaoReiniciarBot.addEventListener('click', reiniciarBotPeloPainel);
-}
+async function executarAcao(idBot, acao) {
+  if (acaoEmAndamento) {
+    return;
+  }
 
-async function atualizarLogsBot() {
-  const elemento = document.getElementById('logsBot');
+  selecionarBot(idBot);
 
-  if (!elemento) return;
+  acaoEmAndamento = true;
+  renderizarBots();
+  atualizarTituloLogs();
 
   try {
-    const resposta = await fetch('/api/bot/logs', {
-      cache: 'no-store'
-    });
+    const resposta = await fetch(
+      `/api/bots/${encodeURIComponent(idBot)}/${acao}`,
+      {
+        method: 'POST',
+        cache: 'no-store'
+      }
+    );
+
+    if (verificarSessaoExpirada(resposta)) {
+      return;
+    }
+
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        resultado.mensagem ||
+        `HTTP ${resposta.status}`
+      );
+    }
+  } catch (erro) {
+    console.error(
+      `Erro ao executar ${acao}:`,
+      erro
+    );
+
+    alert(erro.message);
+  } finally {
+    acaoEmAndamento = false;
+    await carregarBots();
+    await atualizarLogs();
+  }
+}
+
+function atualizarTituloLogs() {
+  const titulo =
+    document.getElementById('botLogsSelecionado');
+
+  const bot = obterBotSelecionado();
+
+  titulo.textContent = bot
+    ? `Bot selecionado: ${bot.nome}`
+    : 'Selecione um bot.';
+}
+
+async function atualizarLogs() {
+  const elemento = document.getElementById('logsBot');
+  const bot = obterBotSelecionado();
+
+  if (!bot) {
+    elemento.textContent =
+      'Nenhum bot selecionado.';
+    return;
+  }
+
+  try {
+    const resposta = await fetch(
+      `/api/bots/${encodeURIComponent(bot.id)}/logs`,
+      {
+        cache: 'no-store'
+      }
+    );
 
     if (verificarSessaoExpirada(resposta)) {
       return;
@@ -285,50 +686,259 @@ async function atualizarLogsBot() {
     }
 
     const resultado = await resposta.json();
-    const logs = Array.isArray(resultado.logs) ? resultado.logs : [];
+
+    const logs = Array.isArray(resultado.logs)
+      ? resultado.logs
+      : [];
 
     if (logs.length === 0) {
-      elemento.textContent = 'Nenhum log disponível.';
+      elemento.textContent =
+        'Nenhum log disponível.';
       return;
     }
 
     elemento.replaceChildren();
 
-    for (const log of logs.slice(-50)) {
+    for (const log of logs.slice(-100)) {
       const linha = document.createElement('div');
+
       linha.className =
         log.tipo === 'stderr'
           ? 'linha-log log-erro'
           : 'linha-log log-normal';
 
       const data = new Date(log.timestamp);
+
       const horario = Number.isNaN(data.getTime())
         ? '--:--:--'
         : data.toLocaleTimeString();
 
-      linha.textContent = `[${horario}] ${log.mensagem}`;
+      linha.textContent =
+        `[${horario}] ${log.mensagem}`;
+
       elemento.appendChild(linha);
     }
 
     elemento.scrollTop = elemento.scrollHeight;
   } catch (erro) {
-    elemento.textContent = '⚠️ Não foi possível carregar os logs.';
-    console.error('Erro ao obter logs do RAVEX-BOT:', erro);
+    elemento.textContent =
+      '⚠️ Não foi possível carregar os logs.';
+
+    console.error(
+      'Erro ao carregar logs:',
+      erro
+    );
   }
 }
 
-atualizarLogsBot();
-setInterval(atualizarLogsBot, 3000);
+const modal =
+  document.getElementById('modalAdicionarBot');
 
-const botaoSairPainel = document.getElementById('sairPainel');
+const abrirModal =
+  document.getElementById('abrirAdicionarBot');
 
-async function sairDoPainel() {
-  if (!botaoSairPainel) {
-    return;
+const fecharModal =
+  document.getElementById('fecharAdicionarBot');
+
+const formulario =
+  document.getElementById('formAdicionarBot');
+
+const mensagemFormulario =
+  document.getElementById('mensagemAdicionarBot');
+
+const tipoBot =
+  document.getElementById('tipoBot');
+
+const camposGit =
+  document.getElementById('camposGit');
+
+const camposDiretorio =
+  document.getElementById('camposDiretorio');
+
+function atualizarMetodoAdicionar() {
+  const porDiretorio =
+    tipoBot.value === 'diretorio';
+
+  const subtitulo =
+    document.getElementById(
+      'subtituloAdicionarBot'
+    );
+
+  if (subtitulo) {
+    subtitulo.textContent = porDiretorio
+      ? 'Cadastrar uma pasta existente sem mover ou apagar os arquivos.'
+      : 'Instalar através de um repositório Git.';
   }
 
-  botaoSairPainel.disabled = true;
-  botaoSairPainel.textContent = '⏳ Saindo...';
+  camposGit.classList.toggle(
+    'oculto',
+    porDiretorio
+  );
+
+  camposDiretorio.classList.toggle(
+    'oculto',
+    !porDiretorio
+  );
+
+  document.getElementById(
+    'repositorioBot'
+  ).required = !porDiretorio;
+
+  document.getElementById(
+    'branchBot'
+  ).required = !porDiretorio;
+
+  document.getElementById(
+    'diretorioBot'
+  ).required = porDiretorio;
+}
+
+tipoBot.addEventListener(
+  'change',
+  atualizarMetodoAdicionar
+);
+
+atualizarMetodoAdicionar();
+
+function definirModal(aberto) {
+  modal.classList.toggle('oculto', !aberto);
+  modal.setAttribute(
+    'aria-hidden',
+    String(!aberto)
+  );
+
+  if (aberto) {
+    document.getElementById('nomeBot').focus();
+  }
+}
+
+abrirModal.addEventListener('click', () => {
+  mensagemFormulario.textContent = '';
+  mensagemFormulario.className = '';
+  definirModal(true);
+});
+
+fecharModal.addEventListener('click', () => {
+  definirModal(false);
+});
+
+modal.addEventListener('click', evento => {
+  if (evento.target === modal) {
+    definirModal(false);
+  }
+});
+
+formulario.addEventListener('submit', async evento => {
+  evento.preventDefault();
+
+  const botao =
+    document.getElementById('confirmarAdicionarBot');
+
+  const tipo =
+    tipoBot.value;
+
+  const nome =
+    document.getElementById('nomeBot').value.trim();
+
+  const repositorio =
+    document.getElementById('repositorioBot').value.trim();
+
+  const branch =
+    document.getElementById('branchBot').value.trim();
+
+  const diretorio =
+    document.getElementById('diretorioBot').value.trim();
+
+  botao.disabled = true;
+
+  botao.textContent =
+    tipo === 'git'
+      ? '⏳ Instalando...'
+      : '⏳ Adicionando...';
+
+  mensagemFormulario.className = '';
+
+  mensagemFormulario.textContent =
+    tipo === 'git'
+      ? 'Clonando e instalando dependências...'
+      : 'Validando a pasta do bot...';
+
+  try {
+    const corpo = {
+      tipo,
+      nome
+    };
+
+    if (tipo === 'git') {
+      corpo.repositorio = repositorio;
+      corpo.branch = branch;
+    } else {
+      corpo.diretorio = diretorio;
+    }
+
+    const resposta = await fetch('/api/bots', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(corpo)
+    });
+
+    if (verificarSessaoExpirada(resposta)) {
+      return;
+    }
+
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        resultado.mensagem ||
+        `HTTP ${resposta.status}`
+      );
+    }
+
+    selecionarBot(resultado.bot.id);
+
+    mensagemFormulario.className = 'sucesso';
+    mensagemFormulario.textContent =
+      '✅ Bot adicionado com sucesso.';
+
+    formulario.reset();
+
+    document.getElementById(
+      'branchBot'
+    ).value = 'main';
+
+    atualizarMetodoAdicionar();
+
+    await carregarBots();
+    await atualizarLogs();
+
+    setTimeout(() => {
+      definirModal(false);
+    }, 700);
+  } catch (erro) {
+    mensagemFormulario.className = 'erro';
+
+    mensagemFormulario.textContent =
+      `❌ ${erro.message}`;
+
+    console.error(
+      'Erro ao adicionar bot:',
+      erro
+    );
+  } finally {
+    botao.disabled = false;
+    botao.textContent = '📥 Adicionar Bot';
+  }
+});
+
+const botaoSair =
+  document.getElementById('sairPainel');
+
+botaoSair.addEventListener('click', async () => {
+  botaoSair.disabled = true;
+  botaoSair.textContent = '⏳ Saindo...';
 
   try {
     const resposta = await fetch('/api/logout', {
@@ -342,21 +952,17 @@ async function sairDoPainel() {
 
     window.location.replace('/login');
   } catch (erro) {
-    console.error(
-      'Erro ao encerrar sessão do RAVEX-HOST:',
-      erro
-    );
-
+    console.error('Erro ao sair:', erro);
     alert('Não foi possível sair do painel.');
 
-    botaoSairPainel.disabled = false;
-    botaoSairPainel.textContent = '🚪 Sair';
+    botaoSair.disabled = false;
+    botaoSair.textContent = '🚪 Sair';
   }
-}
+});
 
-if (botaoSairPainel) {
-  botaoSairPainel.addEventListener(
-    'click',
-    sairDoPainel
-  );
-}
+atualizarStatusSistema();
+carregarBots().then(atualizarLogs);
+
+setInterval(atualizarStatusSistema, 5000);
+setInterval(carregarBots, 5000);
+setInterval(atualizarLogs, 3000);
