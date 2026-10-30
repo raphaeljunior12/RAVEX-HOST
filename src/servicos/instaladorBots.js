@@ -200,6 +200,7 @@ function adicionarPorDiretorio(dados = {}) {
   }
 
   return adicionarBot({
+    contaId: dados.contaId,
     nome,
     diretorio,
     arquivoInicial,
@@ -292,6 +293,7 @@ async function adicionarPorRepositorio(dados = {}) {
     await instalarDependencias(diretorio);
 
     return adicionarBot({
+      contaId: dados.contaId,
       nome,
       diretorio,
       arquivoInicial,

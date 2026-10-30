@@ -13,3 +13,6 @@ dados/logs/
 
 # Backups locais
 *.backup
+
+# Backups de alterações locais
+*.bak-*

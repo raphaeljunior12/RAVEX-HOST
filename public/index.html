@@ -10,18 +10,394 @@
   <link rel="stylesheet" href="/css/painel.css">
 </head>
 <body>
-  <header>
-    <div>
-      <h1>⚡ RAVEX-HOST</h1>
-      <p>Hospedagem & Gerenciamento</p>
+  <header class="topbar-ravex">
+    <div class="topbar-navegacao">
+      <button
+        id="voltarPainel"
+        class="topbar-botao"
+        type="button"
+        aria-label="Voltar"
+        title="Voltar"
+        disabled
+      >
+        ←
+      </button>
+
+      <button
+        id="avancarPainel"
+        class="topbar-botao"
+        type="button"
+        aria-label="Avançar"
+        title="Avançar"
+        disabled
+      >
+        →
+      </button>
     </div>
 
-    <button id="sairPainel" type="button">
-      🚪 Sair
-    </button>
+    <div class="topbar-marca">
+      <h1>⚡ RAVEX-HOST</h1>
+      <p>Hospedagem &amp; Gerenciamento</p>
+    </div>
+
+    <div class="topbar-acoes">
+      <button
+        id="abrirNotificacoes"
+        class="topbar-botao topbar-notificacoes"
+        type="button"
+        aria-label="Notificações"
+        title="Notificações"
+      >
+        🔔
+        <span
+          id="contadorNotificacoes"
+          class="contador-notificacoes"
+          hidden
+        >0</span>
+      </button>
+
+      <button
+        id="abrirMenuPainel"
+        class="topbar-botao"
+        type="button"
+        aria-label="Abrir menu"
+        aria-expanded="false"
+        aria-controls="menuLateralRavex"
+        title="Menu"
+      >
+        ⋮
+      </button>
+    </div>
   </header>
 
   <main>
+    <section
+      id="resumoConta"
+      class="perfil-resumo"
+      aria-label="Resumo da conta"
+    >
+      <div class="perfil-identidade">
+        <button
+          id="abrirPerfil"
+          class="avatar-botao"
+          type="button"
+          aria-label="Abrir meu perfil"
+        >
+          <img
+            id="avatarCabecalho"
+            class="avatar-imagem"
+            alt=""
+            hidden
+          >
+          <span
+            id="avatarPadrao"
+            class="avatar-padrao"
+            aria-hidden="true"
+          >
+            R
+          </span>
+
+          <span
+            id="estadoConta"
+            class="avatar-estado"
+            aria-label="Conta ativa"
+          ></span>
+        </button>
+
+        <div class="perfil-textos">
+          <p class="perfil-saudacao">
+            Bem-vindo à RAVEX-HOST
+          </p>
+
+          <h2 id="nomeConta">
+            Carregando perfil...
+          </h2>
+
+          <p id="usernameConta">
+            @...
+          </p>
+        </div>
+      </div>
+
+      <div class="perfil-indicadores">
+        <div class="indicador-conta">
+          <span>💎 Plano</span>
+          <strong id="planoConta">--</strong>
+        </div>
+
+        <div class="indicador-conta">
+          <span>🔑 Licença</span>
+          <strong id="estadoLicenca">--</strong>
+        </div>
+
+        <div class="indicador-conta">
+          <span>⏳ Restante</span>
+          <strong id="diasLicenca">--</strong>
+        </div>
+      </div>
+    </section>
+
+    <nav
+      class="navegacao-ravex"
+      aria-label="Navegação RAVEX-HOST"
+    >
+      <button
+        class="nav-ravex ativo"
+        type="button"
+        data-pagina="inicio"
+      >
+        🏠 <span>Início</span>
+      </button>
+
+      <button
+        class="nav-ravex"
+        type="button"
+        data-pagina="perfil"
+      >
+        👤 <span>Perfil</span>
+      </button>
+
+      <button
+        class="nav-ravex"
+        type="button"
+        data-pagina="bots"
+      >
+        🤖 <span>Bots</span>
+      </button>
+
+      <button
+        class="nav-ravex"
+        type="button"
+        data-pagina="apis"
+      >
+        🌐 <span>APIs</span>
+      </button>
+
+      <button
+        class="nav-ravex"
+        type="button"
+        data-pagina="loja"
+      >
+        🛒 <span>Loja</span>
+      </button>
+
+      <button
+        class="nav-ravex"
+        type="button"
+        data-pagina="licenca"
+      >
+        🔑 <span>Licença</span>
+      </button>
+
+      <button
+        class="nav-ravex"
+        type="button"
+        data-pagina="suporte"
+      >
+        🛟 <span>Suporte</span>
+      </button>
+    </nav>
+
+    <section
+      id="paginaPerfil"
+      class="pagina-ravex oculto"
+      aria-labelledby="tituloMeuPerfil"
+    >
+      <div class="perfil-pagina-cabecalho">
+        <div>
+          <p class="perfil-etiqueta">
+            CONTA RAVEX
+          </p>
+
+          <h2 id="tituloMeuPerfil">
+            👤 Meu Perfil
+          </h2>
+
+          <p>
+            Gerencie as informações da sua conta.
+          </p>
+        </div>
+
+        <span
+          id="perfilEstadoConta"
+          class="perfil-status"
+        >
+          ● Ativa
+        </span>
+      </div>
+
+      <div class="perfil-grade">
+        <article class="perfil-cartao-principal">
+          <div class="perfil-avatar-area">
+            <div class="perfil-avatar-grande">
+              <img
+                id="perfilAvatarImagem"
+                alt="Foto de perfil"
+                hidden
+              >
+
+              <span
+                id="perfilAvatarPadrao"
+                aria-hidden="true"
+              >
+                R
+              </span>
+            </div>
+
+            <input
+              id="perfilAvatarArquivo"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+            >
+
+            <div class="perfil-avatar-acoes">
+              <button
+                id="alterarAvatar"
+                class="botao-destaque"
+                type="button"
+              >
+                📷 Alterar foto
+              </button>
+
+              <button
+                id="removerAvatar"
+                class="botao-secundario"
+                type="button"
+              >
+                🗑️ Remover
+              </button>
+            </div>
+
+            <small>
+              PNG, JPEG ou WebP • máximo 2 MB
+            </small>
+          </div>
+
+          <div class="perfil-dados-principais">
+            <h3 id="perfilNome">
+              Carregando...
+            </h3>
+
+            <p id="perfilUsername">
+              @...
+            </p>
+
+            <p
+              id="perfilBio"
+              class="perfil-bio"
+            >
+              Nenhuma bio adicionada.
+            </p>
+
+            <div class="perfil-mini-info">
+              <span id="perfilPais">
+                🌍 País não informado
+              </span>
+
+              <span id="perfilTipoConta">
+                👤 Cliente
+              </span>
+            </div>
+          </div>
+        </article>
+
+        <article class="perfil-cartao">
+          <div class="perfil-cartao-titulo">
+            <div>
+              <span class="perfil-icone">🪪</span>
+              <h3>Informações pessoais</h3>
+            </div>
+
+            <button
+              id="editarPerfil"
+              class="botao-secundario"
+              type="button"
+            >
+              ✏️ Editar
+            </button>
+          </div>
+
+          <dl class="perfil-lista-dados">
+            <div>
+              <dt>Nome completo</dt>
+              <dd id="perfilInfoNome">--</dd>
+            </div>
+
+            <div>
+              <dt>Username</dt>
+              <dd id="perfilInfoUsername">--</dd>
+            </div>
+
+            <div>
+              <dt>E-mail</dt>
+              <dd id="perfilInfoEmail">--</dd>
+            </div>
+
+            <div>
+              <dt>País</dt>
+              <dd id="perfilInfoPais">--</dd>
+            </div>
+
+            <div>
+              <dt>Conta criada</dt>
+              <dd id="perfilContaCriada">--</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="perfil-cartao">
+          <div class="perfil-cartao-titulo">
+            <div>
+              <span class="perfil-icone">🔑</span>
+              <h3>Licença RAVEX-HOST</h3>
+            </div>
+
+            <span
+              id="perfilLicencaBadge"
+              class="perfil-licenca-badge"
+            >
+              --
+            </span>
+          </div>
+
+          <dl class="perfil-lista-dados">
+            <div>
+              <dt>Plano</dt>
+              <dd id="perfilPlano">--</dd>
+            </div>
+
+            <div>
+              <dt>Estado</dt>
+              <dd id="perfilLicencaEstado">--</dd>
+            </div>
+
+            <div>
+              <dt>Ativada em</dt>
+              <dd id="perfilLicencaAtivada">--</dd>
+            </div>
+
+            <div>
+              <dt>Termina em</dt>
+              <dd id="perfilLicencaExpira">--</dd>
+            </div>
+
+            <div>
+              <dt>Tempo restante</dt>
+              <dd id="perfilLicencaDias">--</dd>
+            </div>
+          </dl>
+        </article>
+      </div>
+
+      <div
+        id="mensagemPerfil"
+        class="mensagem-perfil"
+        role="status"
+        aria-live="polite"
+      ></div>
+    </section>
+
     <section>
       <div class="titulo-linha">
         <div>
@@ -282,6 +658,205 @@
     </div>
   </div>
 
-  <script src="/js/painel.js"></script>
+  <div
+    id="modalEditarPerfil"
+    class="modal oculto"
+    aria-hidden="true"
+  >
+    <div class="modal-conteudo">
+      <div class="modal-cabecalho">
+        <div>
+          <h2>✏️ Editar Perfil</h2>
+          <p>
+            Atualize as informações da sua conta.
+          </p>
+        </div>
+
+        <button
+          id="fecharEditarPerfil"
+          class="botao-fechar"
+          type="button"
+          aria-label="Fechar"
+        >
+          ✕
+        </button>
+      </div>
+
+      <form id="formEditarPerfil">
+        <label for="editarNome">
+          Nome completo
+        </label>
+
+        <input
+          id="editarNome"
+          type="text"
+          minlength="3"
+          maxlength="100"
+          required
+        >
+
+        <label for="editarUsername">
+          Username
+        </label>
+
+        <input
+          id="editarUsername"
+          type="text"
+          minlength="3"
+          maxlength="32"
+          autocomplete="username"
+          required
+        >
+
+        <p class="ajuda-campo">
+          Letras, números, ponto, hífen e underscore.
+        </p>
+
+        <label for="editarBio">
+          Bio
+        </label>
+
+        <textarea
+          id="editarBio"
+          maxlength="240"
+          rows="4"
+          placeholder="Conte um pouco sobre você..."
+        ></textarea>
+
+        <label for="editarPais">
+          País
+        </label>
+
+        <input
+          id="editarPais"
+          type="text"
+          maxlength="80"
+          placeholder="Ex.: Angola"
+        >
+
+        <p id="mensagemEditarPerfil"></p>
+
+        <button
+          id="salvarPerfil"
+          class="botao-destaque"
+          type="submit"
+        >
+          💾 Salvar alterações
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div
+      id="overlayMenuRavex"
+      class="overlay-menu-ravex"
+      hidden
+    ></div>
+
+    <aside
+      id="menuLateralRavex"
+      class="menu-lateral-ravex"
+      aria-label="Menu RAVEX-HOST"
+      aria-hidden="true"
+    >
+      <div class="menu-lateral-cabecalho">
+        <div>
+          <strong>⚡ RAVEX-HOST</strong>
+          <span>Painel de controle</span>
+        </div>
+
+        <button
+          id="fecharMenuPainel"
+          class="topbar-botao"
+          type="button"
+          aria-label="Fechar menu"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div class="menu-lateral-grupo">
+        <p class="menu-lateral-titulo">
+          NAVEGAÇÃO
+        </p>
+
+        <button class="menu-item-ravex" type="button"
+          data-menu-pagina="inicio">
+          🏠 <span>Início</span>
+        </button>
+
+        <button class="menu-item-ravex" type="button"
+          data-menu-pagina="perfil">
+          👤 <span>Minha conta</span>
+        </button>
+
+        <button class="menu-item-ravex" type="button"
+          data-menu-pagina="bots">
+          🤖 <span>Bots</span>
+        </button>
+
+        <button class="menu-item-ravex" type="button"
+          data-menu-pagina="apis">
+          🌐 <span>APIs</span>
+        </button>
+
+        <button class="menu-item-ravex" type="button"
+          data-menu-pagina="loja">
+          🛒 <span>Loja RAVEX</span>
+        </button>
+
+        <button class="menu-item-ravex" type="button"
+          data-menu-pagina="licenca">
+          🔑 <span>Licença</span>
+        </button>
+
+        <button class="menu-item-ravex" type="button"
+          data-menu-pagina="suporte">
+          🛟 <span>Suporte e Ajuda</span>
+        </button>
+      </div>
+
+      <div class="menu-lateral-grupo">
+        <p class="menu-lateral-titulo">
+          CONTA E SISTEMA
+        </p>
+
+        <button
+          id="menuNotificacoes"
+          class="menu-item-ravex"
+          type="button"
+        >
+          🔔 <span>Notificações</span>
+        </button>
+
+        <button
+          id="menuSeguranca"
+          class="menu-item-ravex"
+          type="button"
+        >
+          🛡️ <span>Segurança</span>
+        </button>
+
+        <button
+          id="menuConfiguracoes"
+          class="menu-item-ravex"
+          type="button"
+        >
+          ⚙️ <span>Configurações</span>
+        </button>
+      </div>
+
+      <div class="menu-lateral-rodape">
+        <button
+          id="sairPainel"
+          class="menu-item-ravex menu-item-perigo"
+          type="button"
+        >
+          🚪 <span>Sair</span>
+        </button>
+      </div>
+    </aside>
+
+    <script src="/js/painel.js"></script>
 </body>
 </html>

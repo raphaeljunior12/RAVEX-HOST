@@ -164,6 +164,12 @@ function adicionarBot(dados = {}) {
     dados.branch || 'main'
   ).trim();
 
+  const contaId =
+    dados.contaId === null ||
+    dados.contaId === undefined
+      ? null
+      : String(dados.contaId).trim();
+
   if (!validarNome(nome)) {
     throw new Error('NOME_INVALIDO');
   }
@@ -198,6 +204,7 @@ function adicionarBot(dados = {}) {
 
   const bot = {
     id: criarId(),
+    contaId,
     nome,
     diretorio,
     arquivoInicial,

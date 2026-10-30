@@ -15,6 +15,9 @@ function formatarUptime(segundos) {
   return `${dias}d ${horas}h ${minutos}m`;
 }
 
+let minhaConta = null;
+let minhaLicenca = null;
+
 let bots = [];
 
 let idBotSelecionado =
@@ -34,6 +37,416 @@ function selecionarBot(idBot) {
     localStorage.removeItem(
       'ravexHostBotSelecionado'
     );
+  }
+}
+
+function renderizarResumoConta() {
+  if (!minhaConta) {
+    return;
+  }
+
+  const nome = document.getElementById(
+    'nomeConta'
+  );
+  const username = document.getElementById(
+    'usernameConta'
+  );
+  const plano = document.getElementById(
+    'planoConta'
+  );
+  const estado = document.getElementById(
+    'estadoLicenca'
+  );
+  const dias = document.getElementById(
+    'diasLicenca'
+  );
+  const imagem = document.getElementById(
+    'avatarCabecalho'
+  );
+  const padrao = document.getElementById(
+    'avatarPadrao'
+  );
+  const estadoConta = document.getElementById(
+    'estadoConta'
+  );
+
+  if (nome) {
+    nome.textContent =
+      minhaConta.nome || 'Utilizador RAVEX';
+  }
+
+  if (username) {
+    username.textContent =
+      minhaConta.username
+        ? `@${minhaConta.username}`
+        : '@ravex';
+  }
+
+  if (plano) {
+    plano.textContent =
+      minhaLicenca?.plano || 'Sem plano';
+  }
+
+  if (estado) {
+    if (minhaLicenca?.status === 'proprietario') {
+      estado.textContent = '👑 Proprietário';
+    } else if (minhaLicenca?.ativa) {
+      estado.textContent = '🟢 Ativa';
+    } else {
+      estado.textContent = '🔴 Expirada';
+    }
+  }
+
+  if (dias) {
+    if (minhaLicenca?.status === 'proprietario') {
+      dias.textContent = 'Ilimitado';
+    } else {
+      const restantes =
+        Number(minhaLicenca?.diasRestantes) || 0;
+
+      dias.textContent =
+        `${restantes} dia${restantes === 1 ? '' : 's'}`;
+    }
+  }
+
+  if (estadoConta) {
+    estadoConta.classList.toggle(
+      'inativo',
+      minhaConta.estado !== 'ativo'
+    );
+  }
+
+  if (imagem && padrao) {
+    if (minhaConta.avatar) {
+      imagem.src = minhaConta.avatar;
+      imagem.hidden = false;
+      padrao.hidden = true;
+    } else {
+      imagem.removeAttribute('src');
+      imagem.hidden = true;
+      padrao.hidden = false;
+
+      const inicial =
+        String(minhaConta.nome || 'R')
+          .trim()
+          .charAt(0)
+          .toUpperCase();
+
+      padrao.textContent = inicial || 'R';
+    }
+  }
+}
+
+document.addEventListener(
+  'ravex:conta-atualizada',
+  renderizarResumoConta
+);
+
+function formatarDataConta(valor) {
+  if (!valor) {
+    return '--';
+  }
+
+  const data = new Date(valor);
+
+  if (Number.isNaN(data.getTime())) {
+    return '--';
+  }
+
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }
+  ).format(data);
+}
+
+function definirTexto(id, valor) {
+  const elemento = document.getElementById(id);
+
+  if (elemento) {
+    elemento.textContent = valor;
+  }
+}
+
+function renderizarPaginaPerfil() {
+  if (!minhaConta) {
+    return;
+  }
+
+  const proprietario =
+    minhaConta.tipo === 'proprietario';
+
+  definirTexto(
+    'perfilNome',
+    minhaConta.nome || 'Utilizador RAVEX'
+  );
+
+  definirTexto(
+    'perfilUsername',
+    minhaConta.username
+      ? `@${minhaConta.username}`
+      : '@ravex'
+  );
+
+  definirTexto(
+    'perfilBio',
+    minhaConta.bio ||
+      'Nenhuma bio adicionada.'
+  );
+
+  definirTexto(
+    'perfilPais',
+    minhaConta.pais
+      ? `🌍 ${minhaConta.pais}`
+      : '🌍 País não informado'
+  );
+
+  definirTexto(
+    'perfilTipoConta',
+    proprietario
+      ? '👑 Proprietário'
+      : '👤 Cliente'
+  );
+
+  definirTexto(
+    'perfilInfoNome',
+    minhaConta.nome || '--'
+  );
+
+  definirTexto(
+    'perfilInfoUsername',
+    minhaConta.username
+      ? `@${minhaConta.username}`
+      : '--'
+  );
+
+  definirTexto(
+    'perfilInfoEmail',
+    minhaConta.email || 'Protegido'
+  );
+
+  definirTexto(
+    'perfilInfoPais',
+    minhaConta.pais || 'Não informado'
+  );
+
+  definirTexto(
+    'perfilContaCriada',
+    proprietario
+      ? 'Conta administrativa'
+      : formatarDataConta(minhaConta.criadoEm)
+  );
+
+  definirTexto(
+    'perfilPlano',
+    minhaLicenca?.plano || 'Sem plano'
+  );
+
+  definirTexto(
+    'perfilLicencaEstado',
+    proprietario
+      ? 'Acesso administrativo'
+      : minhaLicenca?.ativa
+        ? 'Ativa'
+        : 'Expirada'
+  );
+
+  definirTexto(
+    'perfilLicencaAtivada',
+    proprietario
+      ? 'Ilimitado'
+      : formatarDataConta(
+          minhaLicenca?.ativadoEm
+        )
+  );
+
+  definirTexto(
+    'perfilLicencaExpira',
+    proprietario
+      ? 'Sem expiração'
+      : formatarDataConta(
+          minhaLicenca?.expiraEm
+        )
+  );
+
+  definirTexto(
+    'perfilLicencaDias',
+    proprietario
+      ? 'Ilimitado'
+      : `${Number(
+          minhaLicenca?.diasRestantes
+        ) || 0} dia(s)`
+  );
+
+  const badge = document.getElementById(
+    'perfilLicencaBadge'
+  );
+
+  if (badge) {
+    badge.textContent = proprietario
+      ? '👑 OWNER'
+      : minhaLicenca?.ativa
+        ? '● ATIVA'
+        : '● EXPIRADA';
+
+    badge.classList.toggle(
+      'inativo',
+      !proprietario && !minhaLicenca?.ativa
+    );
+  }
+
+  const estadoConta = document.getElementById(
+    'perfilEstadoConta'
+  );
+
+  if (estadoConta) {
+    const ativa =
+      minhaConta.estado === 'ativo';
+
+    estadoConta.textContent =
+      ativa ? '● Ativa' : '● Inativa';
+
+    estadoConta.classList.toggle(
+      'inativo',
+      !ativa
+    );
+  }
+
+  const imagem = document.getElementById(
+    'perfilAvatarImagem'
+  );
+
+  const padrao = document.getElementById(
+    'perfilAvatarPadrao'
+  );
+
+  if (imagem && padrao) {
+    if (minhaConta.avatar) {
+      imagem.src = minhaConta.avatar;
+      imagem.hidden = false;
+      padrao.hidden = true;
+    } else {
+      imagem.removeAttribute('src');
+      imagem.hidden = true;
+      padrao.hidden = false;
+
+      padrao.textContent =
+        String(minhaConta.nome || 'R')
+          .trim()
+          .charAt(0)
+          .toUpperCase() || 'R';
+    }
+  }
+
+  const editar = document.getElementById(
+    'editarPerfil'
+  );
+
+  const alterarAvatar = document.getElementById(
+    'alterarAvatar'
+  );
+
+  const removerAvatar = document.getElementById(
+    'removerAvatar'
+  );
+
+  if (proprietario) {
+    if (editar) editar.hidden = true;
+    if (alterarAvatar) alterarAvatar.hidden = true;
+    if (removerAvatar) removerAvatar.hidden = true;
+  } else {
+    if (editar) editar.hidden = false;
+    if (alterarAvatar) alterarAvatar.hidden = false;
+
+    if (removerAvatar) {
+      removerAvatar.hidden = !minhaConta.avatar;
+    }
+  }
+}
+
+function abrirPaginaPerfil() {
+  const pagina = document.getElementById(
+    'paginaPerfil'
+  );
+
+  if (!pagina) {
+    return;
+  }
+
+  pagina.classList.remove('oculto');
+
+  renderizarPaginaPerfil();
+
+  document
+    .querySelectorAll('.nav-ravex')
+    .forEach(botao => {
+      botao.classList.toggle(
+        'ativo',
+        botao.dataset.pagina === 'perfil'
+      );
+    });
+
+  pagina.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
+}
+
+document.addEventListener(
+  'ravex:conta-atualizada',
+  renderizarPaginaPerfil
+);
+
+async function carregarMinhaConta() {
+  try {
+    const resposta = await fetch(
+      '/api/minha-conta',
+      {
+        cache: 'no-store'
+      }
+    );
+
+    if (verificarSessaoExpirada(resposta)) {
+      return null;
+    }
+
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        resultado.mensagem ||
+        `HTTP ${resposta.status}`
+      );
+    }
+
+    minhaConta = resultado.conta || null;
+    minhaLicenca = resultado.licenca || null;
+
+    document.dispatchEvent(
+      new CustomEvent(
+        'ravex:conta-atualizada',
+        {
+          detail: {
+            conta: minhaConta,
+            licenca: minhaLicenca
+          }
+        }
+      )
+    );
+
+    return resultado;
+  } catch (erro) {
+    console.error(
+      'Erro ao carregar conta:',
+      erro
+    );
+
+    return null;
   }
 }
 
@@ -933,6 +1346,546 @@ formulario.addEventListener('submit', async evento => {
   }
 });
 
+function mostrarMensagemPerfil(
+  texto,
+  tipo = ''
+) {
+  const elemento = document.getElementById(
+    'mensagemPerfil'
+  );
+
+  if (!elemento) return;
+
+  elemento.className =
+    `mensagem-perfil ${tipo}`.trim();
+
+  elemento.textContent = texto;
+}
+
+function definirModalPerfil(aberto) {
+  const modal = document.getElementById(
+    'modalEditarPerfil'
+  );
+
+  if (!modal) return;
+
+  modal.classList.toggle('oculto', !aberto);
+  modal.setAttribute(
+    'aria-hidden',
+    String(!aberto)
+  );
+
+  if (aberto && minhaConta) {
+    document.getElementById(
+      'editarNome'
+    ).value = minhaConta.nome || '';
+
+    document.getElementById(
+      'editarUsername'
+    ).value = minhaConta.username || '';
+
+    document.getElementById(
+      'editarBio'
+    ).value = minhaConta.bio || '';
+
+    document.getElementById(
+      'editarPais'
+    ).value = minhaConta.pais || '';
+
+    document.getElementById(
+      'editarNome'
+    ).focus();
+  }
+}
+
+async function salvarEdicaoPerfil(evento) {
+  evento.preventDefault();
+
+  if (
+    !minhaConta ||
+    minhaConta.tipo === 'proprietario'
+  ) {
+    return;
+  }
+
+  const botao = document.getElementById(
+    'salvarPerfil'
+  );
+
+  const mensagem = document.getElementById(
+    'mensagemEditarPerfil'
+  );
+
+  botao.disabled = true;
+  botao.textContent = '⏳ Salvando...';
+
+  if (mensagem) {
+    mensagem.className = '';
+    mensagem.textContent = '';
+  }
+
+  try {
+    const resposta = await fetch(
+      '/api/minha-conta',
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nome: document
+            .getElementById('editarNome')
+            .value
+            .trim(),
+
+          username: document
+            .getElementById('editarUsername')
+            .value
+            .trim(),
+
+          bio: document
+            .getElementById('editarBio')
+            .value
+            .trim(),
+
+          pais: document
+            .getElementById('editarPais')
+            .value
+            .trim()
+        })
+      }
+    );
+
+    if (verificarSessaoExpirada(resposta)) {
+      return;
+    }
+
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        resultado.mensagem ||
+        `HTTP ${resposta.status}`
+      );
+    }
+
+    await carregarMinhaConta();
+
+    definirModalPerfil(false);
+
+    mostrarMensagemPerfil(
+      '✅ Perfil atualizado com sucesso.',
+      'sucesso'
+    );
+  } catch (erro) {
+    if (mensagem) {
+      mensagem.className = 'erro';
+      mensagem.textContent =
+        `❌ ${erro.message}`;
+    }
+  } finally {
+    botao.disabled = false;
+    botao.textContent = '💾 Salvar alterações';
+  }
+}
+
+async function enviarAvatar(arquivo) {
+  if (
+    !arquivo ||
+    !minhaConta ||
+    minhaConta.tipo === 'proprietario'
+  ) {
+    return;
+  }
+
+  const limite = 2 * 1024 * 1024;
+
+  if (arquivo.size > limite) {
+    mostrarMensagemPerfil(
+      '❌ A imagem pode ter no máximo 2 MB.',
+      'erro'
+    );
+    return;
+  }
+
+  if (
+    ![
+      'image/png',
+      'image/jpeg',
+      'image/webp'
+    ].includes(arquivo.type)
+  ) {
+    mostrarMensagemPerfil(
+      '❌ Use uma imagem PNG, JPEG ou WebP.',
+      'erro'
+    );
+    return;
+  }
+
+  const botao = document.getElementById(
+    'alterarAvatar'
+  );
+
+  botao.disabled = true;
+  botao.textContent = '⏳ Enviando...';
+
+  try {
+    const resposta = await fetch(
+      '/api/minha-conta/avatar',
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type':
+            arquivo.type ||
+            'application/octet-stream'
+        },
+        body: arquivo
+      }
+    );
+
+    if (verificarSessaoExpirada(resposta)) {
+      return;
+    }
+
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        resultado.mensagem ||
+        `HTTP ${resposta.status}`
+      );
+    }
+
+    await carregarMinhaConta();
+
+    mostrarMensagemPerfil(
+      '✅ Foto de perfil atualizada.',
+      'sucesso'
+    );
+  } catch (erro) {
+    mostrarMensagemPerfil(
+      `❌ ${erro.message}`,
+      'erro'
+    );
+  } finally {
+    botao.disabled = false;
+    botao.textContent = '📷 Alterar foto';
+
+    const input = document.getElementById(
+      'perfilAvatarArquivo'
+    );
+
+    if (input) {
+      input.value = '';
+    }
+  }
+}
+
+async function removerFotoPerfil() {
+  if (
+    !minhaConta?.avatar ||
+    minhaConta.tipo === 'proprietario'
+  ) {
+    return;
+  }
+
+  const confirmar = window.confirm(
+    'Deseja remover a sua foto de perfil?'
+  );
+
+  if (!confirmar) return;
+
+  const botao = document.getElementById(
+    'removerAvatar'
+  );
+
+  botao.disabled = true;
+  botao.textContent = '⏳ Removendo...';
+
+  try {
+    const resposta = await fetch(
+      '/api/minha-conta/avatar',
+      {
+        method: 'DELETE'
+      }
+    );
+
+    if (verificarSessaoExpirada(resposta)) {
+      return;
+    }
+
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(
+        resultado.mensagem ||
+        `HTTP ${resposta.status}`
+      );
+    }
+
+    await carregarMinhaConta();
+
+    mostrarMensagemPerfil(
+      '✅ Foto de perfil removida.',
+      'sucesso'
+    );
+  } catch (erro) {
+    mostrarMensagemPerfil(
+      `❌ ${erro.message}`,
+      'erro'
+    );
+  } finally {
+    botao.disabled = false;
+    botao.textContent = '🗑️ Remover';
+  }
+}
+
+const botaoEditarPerfil =
+  document.getElementById('editarPerfil');
+
+const botaoFecharEditarPerfil =
+  document.getElementById('fecharEditarPerfil');
+
+const formularioEditarPerfil =
+  document.getElementById('formEditarPerfil');
+
+const botaoAlterarAvatar =
+  document.getElementById('alterarAvatar');
+
+const inputAvatar =
+  document.getElementById('perfilAvatarArquivo');
+
+const botaoRemoverAvatar =
+  document.getElementById('removerAvatar');
+
+if (botaoEditarPerfil) {
+  botaoEditarPerfil.addEventListener(
+    'click',
+    () => definirModalPerfil(true)
+  );
+}
+
+if (botaoFecharEditarPerfil) {
+  botaoFecharEditarPerfil.addEventListener(
+    'click',
+    () => definirModalPerfil(false)
+  );
+}
+
+if (formularioEditarPerfil) {
+  formularioEditarPerfil.addEventListener(
+    'submit',
+    salvarEdicaoPerfil
+  );
+}
+
+if (botaoAlterarAvatar && inputAvatar) {
+  botaoAlterarAvatar.addEventListener(
+    'click',
+    () => inputAvatar.click()
+  );
+
+  inputAvatar.addEventListener(
+    'change',
+    () => {
+      const arquivo = inputAvatar.files?.[0];
+
+      if (arquivo) {
+        enviarAvatar(arquivo);
+      }
+    }
+  );
+}
+
+if (botaoRemoverAvatar) {
+  botaoRemoverAvatar.addEventListener(
+    'click',
+    removerFotoPerfil
+  );
+}
+
+const botaoAbrirPerfil =
+  document.getElementById('abrirPerfil');
+
+if (botaoAbrirPerfil) {
+  botaoAbrirPerfil.addEventListener(
+    'click',
+    abrirPaginaPerfil
+  );
+}
+
+document
+  .querySelectorAll('.nav-ravex')
+  .forEach(botao => {
+    botao.addEventListener('click', () => {
+      const pagina = botao.dataset.pagina;
+
+      if (pagina === 'perfil') {
+        abrirPaginaPerfil();
+        return;
+      }
+
+      document
+        .querySelectorAll('.nav-ravex')
+        .forEach(item => {
+          item.classList.toggle(
+            'ativo',
+            item === botao
+          );
+        });
+
+      if (pagina === 'inicio') {
+        const perfil = document.getElementById(
+          'paginaPerfil'
+        );
+
+        if (perfil) {
+          perfil.classList.add('oculto');
+        }
+
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      }
+    });
+  });
+
+
+/* =========================================================
+   RAVEX-HOST — MENU LATERAL
+   ========================================================= */
+
+const botaoAbrirMenuPainel =
+  document.getElementById('abrirMenuPainel');
+
+const botaoFecharMenuPainel =
+  document.getElementById('fecharMenuPainel');
+
+const menuLateralRavex =
+  document.getElementById('menuLateralRavex');
+
+const overlayMenuRavex =
+  document.getElementById('overlayMenuRavex');
+
+function abrirMenuRavex() {
+  if (!menuLateralRavex || !overlayMenuRavex) {
+    return;
+  }
+
+  overlayMenuRavex.hidden = false;
+
+  requestAnimationFrame(() => {
+    menuLateralRavex.classList.add('aberto');
+  });
+
+  menuLateralRavex.setAttribute(
+    'aria-hidden',
+    'false'
+  );
+
+  botaoAbrirMenuPainel?.setAttribute(
+    'aria-expanded',
+    'true'
+  );
+
+  document.body.classList.add(
+    'menu-ravex-aberto'
+  );
+
+  botaoFecharMenuPainel?.focus();
+}
+
+function fecharMenuRavex({
+  devolverFoco = true
+} = {}) {
+  if (!menuLateralRavex || !overlayMenuRavex) {
+    return;
+  }
+
+  menuLateralRavex.classList.remove('aberto');
+
+  menuLateralRavex.setAttribute(
+    'aria-hidden',
+    'true'
+  );
+
+  botaoAbrirMenuPainel?.setAttribute(
+    'aria-expanded',
+    'false'
+  );
+
+  document.body.classList.remove(
+    'menu-ravex-aberto'
+  );
+
+  window.setTimeout(() => {
+    if (
+      !menuLateralRavex.classList.contains(
+        'aberto'
+      )
+    ) {
+      overlayMenuRavex.hidden = true;
+    }
+  }, 250);
+
+  if (devolverFoco) {
+    botaoAbrirMenuPainel?.focus();
+  }
+}
+
+botaoAbrirMenuPainel?.addEventListener(
+  'click',
+  abrirMenuRavex
+);
+
+botaoFecharMenuPainel?.addEventListener(
+  'click',
+  () => fecharMenuRavex()
+);
+
+overlayMenuRavex?.addEventListener(
+  'click',
+  () => fecharMenuRavex()
+);
+
+document.addEventListener('keydown', evento => {
+  if (
+    evento.key === 'Escape' &&
+    menuLateralRavex?.classList.contains(
+      'aberto'
+    )
+  ) {
+    fecharMenuRavex();
+  }
+});
+
+/*
+ * Os itens do menu reutilizam a navegação
+ * principal já existente.
+ */
+document
+  .querySelectorAll('[data-menu-pagina]')
+  .forEach(itemMenu => {
+    itemMenu.addEventListener('click', () => {
+      const pagina =
+        itemMenu.dataset.menuPagina;
+
+      const botaoOriginal =
+        document.querySelector(
+          `.nav-ravex[data-pagina="${pagina}"]`
+        );
+
+      if (botaoOriginal) {
+        botaoOriginal.click();
+      }
+
+      fecharMenuRavex({
+        devolverFoco: false
+      });
+    });
+  });
+
 const botaoSair =
   document.getElementById('sairPainel');
 
@@ -960,8 +1913,16 @@ botaoSair.addEventListener('click', async () => {
   }
 });
 
-atualizarStatusSistema();
-carregarBots().then(atualizarLogs);
+async function inicializarPainel() {
+  await carregarMinhaConta();
+
+  atualizarStatusSistema();
+
+  await carregarBots();
+  await atualizarLogs();
+}
+
+inicializarPainel();
 
 setInterval(atualizarStatusSistema, 5000);
 setInterval(carregarBots, 5000);

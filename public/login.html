@@ -2,48 +2,335 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — RAVEX-HOST</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+  <meta
+    name="description"
+    content="RAVEX-HOST — hospedagem e gerenciamento de Bots e APIs."
+  >
+  <title>RAVEX-HOST — Acesso</title>
   <link rel="stylesheet" href="/css/painel.css">
 </head>
-<body>
 
-  <header>
-    <h1>⚡ RAVEX-HOST</h1>
-    <p>Acesso ao painel administrativo</p>
+<body class="pagina-acesso">
+
+  <header class="acesso-topo">
+    <div class="acesso-marca">
+      <h1>⚡ RAVEX-HOST</h1>
+      <p>
+        Hospedagem e gerenciamento de Bots e APIs
+      </p>
+    </div>
   </header>
 
-  <main>
-    <section class="login-container">
-      <h2>🔐 Entrar</h2>
+  <main class="acesso-principal">
 
-      <form id="formLogin">
-        <label for="usuario">Usuário</label>
-        <input
-          id="usuario"
-          name="usuario"
-          type="text"
-          autocomplete="username"
-          required
+    <section class="acesso-card">
+
+      <div class="acesso-introducao">
+        <span class="acesso-status">
+          ● Plataforma RAVEX
+        </span>
+
+        <h2>Bem-vindo</h2>
+
+        <p>
+          Entre na sua conta ou ative o seu acesso
+          RAVEX-HOST.
+        </p>
+      </div>
+
+      <nav
+        class="acesso-abas"
+        aria-label="Opções de acesso"
+      >
+        <button
+          class="aba-acesso ativa"
+          type="button"
+          data-painel="login"
         >
-
-        <label for="senha">Senha</label>
-        <input
-          id="senha"
-          name="senha"
-          type="password"
-          autocomplete="current-password"
-          required
-        >
-
-        <button id="entrar" type="submit">
-          🔓 Entrar
+          🔐 Entrar
         </button>
 
-        <p id="mensagemLogin"></p>
-      </form>
+        <button
+          class="aba-acesso"
+          type="button"
+          data-painel="cadastro"
+        >
+          ✨ Criar conta
+        </button>
+
+        <button
+          class="aba-acesso"
+          type="button"
+          data-painel="proprietario"
+        >
+          👑 Proprietário
+        </button>
+      </nav>
+
+      <section
+        id="painelLogin"
+        class="painel-acesso ativo"
+      >
+        <h3>Entrar na conta</h3>
+
+        <form id="formLogin">
+
+          <label for="emailLogin">
+            E-mail
+          </label>
+
+          <input
+            id="emailLogin"
+            name="email"
+            type="email"
+            autocomplete="email"
+            placeholder="seu@email.com"
+            required
+          >
+
+          <label for="senhaLogin">
+            Senha
+          </label>
+
+          <input
+            id="senhaLogin"
+            name="senha"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Sua senha"
+            required
+          >
+
+          <button
+            id="entrar"
+            type="submit"
+          >
+            🔓 Entrar
+          </button>
+
+          <p
+            id="mensagemLogin"
+            class="mensagem-formulario"
+            aria-live="polite"
+          ></p>
+
+        </form>
+      </section>
+
+      <section
+        id="painelCadastro"
+        class="painel-acesso"
+        hidden
+      >
+        <h3>Criar conta RAVEX-HOST</h3>
+
+        <p class="texto-secundario">
+          O código de acesso define o seu plano e
+          ativa a licença da conta.
+        </p>
+
+        <form id="formCadastro">
+
+          <label for="nomeCadastro">
+            Nome completo
+          </label>
+
+          <input
+            id="nomeCadastro"
+            name="nome"
+            type="text"
+            autocomplete="name"
+            minlength="3"
+            maxlength="100"
+            required
+          >
+
+          <label for="usernameCadastro">
+            Username
+          </label>
+
+          <input
+            id="usernameCadastro"
+            name="username"
+            type="text"
+            autocomplete="username"
+            minlength="3"
+            maxlength="32"
+            placeholder="exemplo_usuario"
+            required
+          >
+
+          <label for="emailCadastro">
+            E-mail
+          </label>
+
+          <input
+            id="emailCadastro"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+          >
+
+          <label for="senhaCadastro">
+            Senha
+          </label>
+
+          <input
+            id="senhaCadastro"
+            name="senha"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            maxlength="128"
+            required
+          >
+
+          <label for="confirmarSenhaCadastro">
+            Confirmar senha
+          </label>
+
+          <input
+            id="confirmarSenhaCadastro"
+            name="confirmarSenha"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            maxlength="128"
+            required
+          >
+
+          <label for="codigoCadastro">
+            Código de acesso RAVEX-HOST
+          </label>
+
+          <input
+            id="codigoCadastro"
+            name="codigo"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="RAVEX-XXXXXXXXXXXX"
+            required
+          >
+
+          <button
+            id="criarConta"
+            type="submit"
+          >
+            ⚡ Criar conta e ativar
+          </button>
+
+          <p
+            id="mensagemCadastro"
+            class="mensagem-formulario"
+            aria-live="polite"
+          ></p>
+
+        </form>
+      </section>
+
+      <section
+        id="painelProprietario"
+        class="painel-acesso"
+        hidden
+      >
+        <div class="proprietario-bloqueado">
+          <span>👑</span>
+
+          <h3>Acesso do Proprietário</h3>
+
+          <p>
+            Administração principal da RAVEX-HOST.
+          </p>
+        </div>
+
+        <form
+          id="formProprietario"
+          class="formulario-acesso"
+        >
+          <label for="emailProprietario">
+            E-mail do proprietário
+          </label>
+
+          <input
+            id="emailProprietario"
+            name="email"
+            type="email"
+            autocomplete="email"
+            placeholder="E-mail autorizado"
+            required
+          >
+
+                    <label for="numeroProprietario">
+            Número do proprietário
+          </label>
+
+          <input
+            id="numeroProprietario"
+            name="numero"
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel"
+            placeholder="Número autorizado"
+            required
+          >
+
+<button
+            id="enviarCodigoProprietario"
+            type="button"
+          >
+            📩 Enviar código
+          </button>
+
+          <div
+            id="areaCodigoProprietario"
+            hidden
+          >
+            <label for="codigoProprietario">
+              Código de confirmação
+            </label>
+
+            <input
+              id="codigoProprietario"
+              name="codigo"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              pattern="[0-9]{6}"
+              placeholder="000000"
+            >
+
+            <button
+              id="confirmarProprietario"
+              type="submit"
+            >
+              👑 Confirmar acesso
+            </button>
+          </div>
+
+          <p
+            id="mensagemProprietario"
+            class="mensagem-formulario"
+            aria-live="polite"
+          ></p>
+        </form>
+      </section>
+
     </section>
+
   </main>
+
+  <footer class="acesso-rodape">
+    <p>
+      ⚡ RAVEX-HOST • Ecossistema RAVEX
+    </p>
+  </footer>
 
   <script src="/js/login.js"></script>
 </body>

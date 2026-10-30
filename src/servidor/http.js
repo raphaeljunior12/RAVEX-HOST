@@ -9,11 +9,45 @@ const {
 const { autenticar } = require('../servicos/autenticacao');
 
 const {
+  cadastrarUsuario
+} = require('../servicos/cadastro');
+
+const {
+  autenticarConta,
+  obterContaPorId,
+  atualizarPerfil,
+  atualizarAvatar
+} = require('../servicos/contas');
+
+const {
+  salvarAvatar,
+  obterAvatar,
+  removerAvatar
+} = require('../servicos/avatars');
+
+const {
+  obterStatusLicenca,
+  temLicencaAtiva
+} = require('../servicos/licencas');
+
+const {
   criarSessao,
   obterSessao,
   destruirSessao,
   DURACAO_SESSAO_MS
 } = require('../servicos/sessoes');
+
+const {
+  emailAutorizado,
+  numeroAutorizado,
+  gerarCodigo,
+  verificarCodigo,
+  invalidarCodigo
+} = require('../servicos/codigoAcesso');
+
+const {
+  enviarCodigoProprietario
+} = require('../servicos/email');
 
 const {
   obterStatusBot,
@@ -112,9 +146,18 @@ function obterTokenSessao(req) {
   return obterCookies(req).ravex_host_session || null;
 }
 
-function estaAutenticado(req) {
+function obterSessaoAtual(req) {
   const token = obterTokenSessao(req);
-  return Boolean(obterSessao(token));
+
+  if (!token) {
+    return null;
+  }
+
+  return obterSessao(token);
+}
+
+function estaAutenticado(req) {
+  return Boolean(obterSessaoAtual(req));
 }
 
 function exigirAutenticacao(req, res) {
@@ -128,6 +171,99 @@ function exigirAutenticacao(req, res) {
   });
 
   return false;
+}
+
+function exigirLicencaAtiva(req, res) {
+  const sessao = obterSessaoAtual(req);
+
+  if (!sessao) {
+    responderJSON(res, 401, {
+      sucesso: false,
+      mensagem: 'Autenticação necessária.'
+    });
+
+    return false;
+  }
+
+  if (sessao.tipo === 'proprietario') {
+    return true;
+  }
+
+  if (
+    !sessao.contaId ||
+    !temLicencaAtiva(sessao.contaId)
+  ) {
+    responderJSON(res, 403, {
+      sucesso: false,
+      codigo: 'LICENCA_INATIVA',
+      mensagem:
+        'Sua licença RAVEX-HOST está inativa ou expirada.',
+      renovacaoNecessaria: true
+    });
+
+    return false;
+  }
+
+  return true;
+}
+
+function podeAcessarBot(sessao, bot) {
+  if (!sessao || !bot) {
+    return false;
+  }
+
+  if (sessao.tipo === 'proprietario') {
+    return true;
+  }
+
+  if (!sessao.contaId || !bot.contaId) {
+    return false;
+  }
+
+  return (
+    String(bot.contaId) ===
+    String(sessao.contaId)
+  );
+}
+
+function obterBotAutorizado(req, idBot) {
+  const sessao = obterSessaoAtual(req);
+
+  if (!sessao) {
+    return {
+      autorizado: false,
+      motivo: 'NAO_AUTENTICADO',
+      bot: null,
+      sessao: null
+    };
+  }
+
+  const bot = obterBot(idBot);
+
+  if (!bot) {
+    return {
+      autorizado: false,
+      motivo: 'BOT_NAO_ENCONTRADO',
+      bot: null,
+      sessao
+    };
+  }
+
+  if (!podeAcessarBot(sessao, bot)) {
+    return {
+      autorizado: false,
+      motivo: 'SEM_PERMISSAO',
+      bot: null,
+      sessao
+    };
+  }
+
+  return {
+    autorizado: true,
+    motivo: null,
+    bot,
+    sessao
+  };
 }
 
 function lerJSON(req) {
@@ -167,6 +303,45 @@ function lerJSON(req) {
   });
 }
 
+function lerBinario(req, limite = 2 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const partes = [];
+    let tamanho = 0;
+    let encerrado = false;
+
+    req.on('data', parte => {
+      if (encerrado) {
+        return;
+      }
+
+      tamanho += parte.length;
+
+      if (tamanho > limite) {
+        encerrado = true;
+        reject(new Error('PAYLOAD_MUITO_GRANDE'));
+        req.destroy();
+        return;
+      }
+
+      partes.push(parte);
+    });
+
+    req.on('end', () => {
+      if (encerrado) {
+        return;
+      }
+
+      resolve(Buffer.concat(partes));
+    });
+
+    req.on('error', erro => {
+      if (!encerrado) {
+        reject(erro);
+      }
+    });
+  });
+}
+
 function criarCookieSessao(token) {
   const maxAge = Math.floor(DURACAO_SESSAO_MS / 1000);
 
@@ -198,21 +373,229 @@ function iniciarServidor() {
 
     const rota = url.pathname;
 
-    if (rota === '/api/login' && req.method === 'POST') {
+    if (rota === '/api/cadastro' && req.method === 'POST') {
       try {
         const corpo = await lerJSON(req);
 
-        const usuario = String(corpo.usuario || '');
-        const senha = String(corpo.senha || '');
+        const resultado = await cadastrarUsuario({
+          nome: corpo.nome,
+          username: corpo.username,
+          email: corpo.email,
+          senha: corpo.senha,
+          confirmarSenha: corpo.confirmarSenha,
+          codigo: corpo.codigo
+        });
 
-        if (!autenticar(usuario, senha)) {
-          return responderJSON(res, 401, {
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem: 'Conta criada e acesso ativado com sucesso.',
+
+          conta: resultado.conta,
+
+          licenca: {
+            plano: resultado.licenca.plano,
+            status: resultado.licenca.status,
+            diasRestantes:
+              resultado.licenca.diasRestantes,
+            ativadoEm:
+              resultado.licenca.ativadoEm,
+            expiraEm:
+              resultado.licenca.expiraEm
+          }
+        });
+      } catch (erro) {
+        const mensagens = {
+          SENHAS_DIFERENTES:
+            'As senhas não são iguais.',
+
+          CODIGO_OBRIGATORIO:
+            'Informe o código de acesso.',
+
+          CODIGO_INVALIDO_OU_ESGOTADO:
+            'Código de acesso inválido ou esgotado.',
+
+          CODIGO_INVALIDO:
+            'Código de acesso inválido.',
+
+          CODIGO_ESGOTADO:
+            'Este código não possui mais vagas.',
+
+          NOME_INVALIDO:
+            'Nome completo inválido.',
+
+          USERNAME_INVALIDO:
+            'Username inválido.',
+
+          EMAIL_INVALIDO:
+            'E-mail inválido.',
+
+          SENHA_INVALIDA:
+            'A senha deve possuir entre 8 e 128 caracteres.',
+
+          EMAIL_JA_CADASTRADO:
+            'Este e-mail já possui uma conta.',
+
+          USERNAME_JA_CADASTRADO:
+            'Este username já está em uso.'
+        };
+
+        if (erro.message === 'PAYLOAD_MUITO_GRANDE') {
+          return responderJSON(res, 413, {
             sucesso: false,
-            mensagem: 'Usuário ou senha incorretos.'
+            mensagem: 'Requisição muito grande.'
           });
         }
 
-        const sessao = criarSessao();
+        const mensagem = mensagens[erro.message];
+
+        return responderJSON(
+          res,
+          mensagem ? 400 : 500,
+          {
+            sucesso: false,
+            mensagem:
+              mensagem ||
+              'Não foi possível criar a conta.'
+          }
+        );
+      }
+    }
+
+    if (
+      rota === '/api/proprietario/solicitar' &&
+      req.method === 'POST'
+    ) {
+      let email = '';
+
+      try {
+        const corpo = await lerJSON(req);
+
+        email = String(
+          corpo.email || ''
+        ).trim().toLowerCase();
+
+        const numero = String(
+          corpo.numero || ''
+        ).trim();
+
+        if (!email || !numero) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem:
+              'Informe o e-mail e o número do proprietário.'
+          });
+        }
+
+        if (
+          !emailAutorizado(email) ||
+          !numeroAutorizado(numero)
+        ) {
+          return responderJSON(res, 401, {
+            sucesso: false,
+            mensagem: 'Acesso não autorizado.'
+          });
+        }
+
+        const codigo = gerarCodigo(email);
+
+        try {
+          await enviarCodigoProprietario({
+            destino: email,
+            codigo
+          });
+        } catch (erroEmail) {
+          invalidarCodigo(email);
+
+          console.error(
+            '❌ Falha ao enviar código do proprietário:',
+            erroEmail.code || erroEmail.message
+          );
+
+          return responderJSON(res, 503, {
+            sucesso: false,
+            mensagem:
+              'Envio do código temporariamente indisponível.'
+          });
+        }
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem:
+            'Código de confirmação enviado por e-mail.'
+        });
+      } catch (erro) {
+        if (email) {
+          invalidarCodigo(email);
+        }
+
+        if (erro.message === 'PAYLOAD_MUITO_GRANDE') {
+          return responderJSON(res, 413, {
+            sucesso: false,
+            mensagem: 'Requisição muito grande.'
+          });
+        }
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            'Não foi possível solicitar o acesso.'
+        });
+      }
+    }
+
+    if (
+      rota === '/api/proprietario/confirmar' &&
+      req.method === 'POST'
+    ) {
+      try {
+        const corpo = await lerJSON(req);
+
+        const email = String(
+          corpo.email || ''
+        ).trim().toLowerCase();
+
+          const numero = String(
+            corpo.numero || ''
+          ).trim();
+
+        const codigo = String(
+          corpo.codigo || ''
+        ).trim();
+
+          if (!email || !numero || !codigo) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+              mensagem: 'Informe o e-mail, o número e o código.'
+          });
+        }
+
+          if (
+            !emailAutorizado(email) ||
+            !numeroAutorizado(numero)
+          ) {
+          return responderJSON(res, 401, {
+            sucesso: false,
+            mensagem: 'Acesso não autorizado.'
+          });
+        }
+
+        const valido = verificarCodigo(
+          email,
+          codigo
+        );
+
+        if (!valido) {
+          return responderJSON(res, 401, {
+            sucesso: false,
+            mensagem:
+              'Código inválido, expirado ou bloqueado.'
+          });
+        }
+
+        const sessao = criarSessao({
+          contaId: null,
+          tipo: 'proprietario'
+        });
 
         res.setHeader(
           'Set-Cookie',
@@ -221,7 +604,94 @@ function iniciarServidor() {
 
         return responderJSON(res, 200, {
           sucesso: true,
-          mensagem: 'Login realizado com sucesso.'
+          mensagem:
+            'Acesso de proprietário confirmado.',
+
+          proprietario: {
+            tipo: 'proprietario'
+          },
+
+          sessao: {
+            expiraEm: sessao.expiraEm
+          }
+        });
+      } catch (erro) {
+        if (erro.message === 'PAYLOAD_MUITO_GRANDE') {
+          return responderJSON(res, 413, {
+            sucesso: false,
+            mensagem: 'Requisição muito grande.'
+          });
+        }
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            'Não foi possível confirmar o acesso.'
+        });
+      }
+    }
+
+    if (rota === '/api/login' && req.method === 'POST') {
+      try {
+        const corpo = await lerJSON(req);
+
+        const email = String(corpo.email || '').trim();
+        const senha = String(corpo.senha || '');
+
+        if (!email || !senha) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem: 'Informe o e-mail e a senha.'
+          });
+        }
+
+        const conta = await autenticarConta(
+          email,
+          senha
+        );
+
+        if (!conta) {
+          return responderJSON(res, 401, {
+            sucesso: false,
+            mensagem: 'E-mail ou senha incorretos.'
+          });
+        }
+
+        const licenca = obterStatusLicenca(
+          conta.id
+        );
+
+        const sessao = criarSessao({
+          contaId: conta.id,
+          tipo: conta.tipo || 'usuario'
+        });
+
+        res.setHeader(
+          'Set-Cookie',
+          criarCookieSessao(sessao.token)
+        );
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem: 'Login realizado com sucesso.',
+
+          conta,
+
+          licenca: {
+            ativa: licenca.ativa,
+            status: licenca.status,
+            plano: licenca.plano || null,
+            diasRestantes:
+              licenca.diasRestantes,
+            ativadoEm:
+              licenca.ativadoEm,
+            renovadoEm:
+              licenca.renovadoEm,
+            expiraEm:
+              licenca.expiraEm,
+            avisoRenovacao:
+              licenca.avisoRenovacao
+          }
         });
       } catch (erro) {
         if (erro.message === 'PAYLOAD_MUITO_GRANDE') {
@@ -319,6 +789,364 @@ function iniciarServidor() {
       );
     }
 
+    if (rota === '/api/minha-conta' && req.method === 'GET') {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo === 'proprietario') {
+        return responderJSON(res, 200, {
+          sucesso: true,
+
+          conta: {
+            id: null,
+            nome: 'Proprietário',
+            username: 'proprietario',
+            email: null,
+            tipo: 'proprietario',
+            estado: 'ativo',
+            criadoEm: null,
+            atualizadoEm: null
+          },
+
+          licenca: {
+            ativa: true,
+            status: 'proprietario',
+            plano: 'RAVEX-HOST OWNER',
+            diasRestantes: null,
+            avisoRenovacao: null,
+            ativadoEm: null,
+            renovadoEm: null,
+            expiraEm: null
+          }
+        });
+      }
+
+      if (!sessao.contaId) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Sessão sem conta associada.'
+        });
+      }
+
+      const conta = obterContaPorId(
+        sessao.contaId
+      );
+
+      if (!conta) {
+        return responderJSON(res, 404, {
+          sucesso: false,
+          mensagem: 'Conta não encontrada.'
+        });
+      }
+
+      const licenca = obterStatusLicenca(
+        conta.id
+      );
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+
+        conta: {
+          id: conta.id,
+          nome: conta.nome,
+          username: conta.username,
+          email: conta.email,
+          avatar: conta.avatar
+            ? `/api/avatars/${conta.avatar}`
+            : null,
+          bio: conta.bio || '',
+          pais: conta.pais || '',
+          tipo: conta.tipo,
+          estado: conta.estado,
+          criadoEm: conta.criadoEm,
+          atualizadoEm: conta.atualizadoEm
+        },
+
+        licenca: {
+          ativa: licenca.ativa,
+          status: licenca.status,
+          plano: licenca.plano || null,
+          diasRestantes:
+            licenca.diasRestantes,
+          avisoRenovacao:
+            licenca.avisoRenovacao,
+          ativadoEm:
+            licenca.ativadoEm,
+          renovadoEm:
+            licenca.renovadoEm,
+          expiraEm:
+            licenca.expiraEm
+        }
+      });
+    }
+
+    if (
+      rota === '/api/minha-conta' &&
+      req.method === 'PATCH'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (
+        sessao.tipo === 'proprietario' ||
+        !sessao.contaId
+      ) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Este perfil não pode ser editado por esta rota.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const conta = atualizarPerfil(
+          sessao.contaId,
+          {
+            nome: corpo.nome,
+            username: corpo.username,
+            bio: corpo.bio,
+            pais: corpo.pais
+          }
+        );
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem: 'Perfil atualizado com sucesso.',
+          conta
+        });
+      } catch (erro) {
+        const mensagens = {
+          CONTA_INVALIDA:
+            'Conta inválida.',
+          CONTA_NAO_ENCONTRADA:
+            'Conta não encontrada.',
+          NOME_INVALIDO:
+            'O nome deve ter entre 3 e 100 caracteres.',
+          USERNAME_INVALIDO:
+            'Username inválido.',
+          USERNAME_JA_CADASTRADO:
+            'Este username já está em uso.',
+          BIO_INVALIDA:
+            'A bio pode ter no máximo 240 caracteres.',
+          PAIS_INVALIDO:
+            'O país pode ter no máximo 80 caracteres.',
+          PAYLOAD_MUITO_GRANDE:
+            'Requisição muito grande.'
+        };
+
+        const status =
+          erro.message === 'CONTA_NAO_ENCONTRADA'
+            ? 404
+            : erro.message === 'PAYLOAD_MUITO_GRANDE'
+              ? 413
+              : 400;
+
+        return responderJSON(res, status, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível atualizar o perfil.'
+        });
+      }
+    }
+
+    if (
+      rota === '/api/minha-conta/avatar' &&
+      req.method === 'PUT'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (
+        !sessao ||
+        sessao.tipo === 'proprietario' ||
+        !sessao.contaId
+      ) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Não é possível alterar este avatar.'
+        });
+      }
+
+      let novoAvatar = null;
+
+      try {
+        const contaAtual = obterContaPorId(
+          sessao.contaId
+        );
+
+        if (!contaAtual) {
+          return responderJSON(res, 404, {
+            sucesso: false,
+            mensagem: 'Conta não encontrada.'
+          });
+        }
+
+        const buffer = await lerBinario(req);
+
+        if (!buffer.length) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem: 'Nenhuma imagem recebida.'
+          });
+        }
+
+        novoAvatar = salvarAvatar(
+          sessao.contaId,
+          buffer
+        );
+
+        const conta = atualizarAvatar(
+          sessao.contaId,
+          novoAvatar.nome
+        );
+
+        if (
+          contaAtual.avatar &&
+          contaAtual.avatar !== novoAvatar.nome
+        ) {
+          removerAvatar(contaAtual.avatar);
+        }
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem: 'Foto de perfil atualizada.',
+          avatar: novoAvatar.url,
+          conta
+        });
+      } catch (erro) {
+        if (novoAvatar?.nome) {
+          removerAvatar(novoAvatar.nome);
+        }
+
+        const mensagens = {
+          PAYLOAD_MUITO_GRANDE:
+            'A imagem pode ter no máximo 2 MB.',
+          IMAGEM_INVALIDA:
+            'Use uma imagem PNG, JPEG ou WebP.',
+          CONTA_INVALIDA:
+            'Conta inválida.',
+          CONTA_NAO_ENCONTRADA:
+            'Conta não encontrada.',
+          AVATAR_INVALIDO:
+            'Avatar inválido.'
+        };
+
+        const status =
+          erro.message === 'PAYLOAD_MUITO_GRANDE'
+            ? 413
+            : erro.message === 'CONTA_NAO_ENCONTRADA'
+              ? 404
+              : 400;
+
+        return responderJSON(res, status, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível atualizar a foto.'
+        });
+      }
+    }
+
+    if (
+      rota === '/api/minha-conta/avatar' &&
+      req.method === 'DELETE'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (
+        !sessao ||
+        sessao.tipo === 'proprietario' ||
+        !sessao.contaId
+      ) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Não é possível remover este avatar.'
+        });
+      }
+
+      try {
+        const contaAtual = obterContaPorId(
+          sessao.contaId
+        );
+
+        if (!contaAtual) {
+          return responderJSON(res, 404, {
+            sucesso: false,
+            mensagem: 'Conta não encontrada.'
+          });
+        }
+
+        const avatarAnterior =
+          contaAtual.avatar || null;
+
+        const conta = atualizarAvatar(
+          sessao.contaId,
+          null
+        );
+
+        if (avatarAnterior) {
+          removerAvatar(avatarAnterior);
+        }
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem: 'Foto de perfil removida.',
+          avatar: null,
+          conta
+        });
+      } catch {
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            'Não foi possível remover a foto.'
+        });
+      }
+    }
+
+    const rotaAvatar = rota.match(
+      /^\/api\/avatars\/([0-9a-f-]+\.(?:png|jpg|webp))$/i
+    );
+
+    if (rotaAvatar && req.method === 'GET') {
+      const avatar = obterAvatar(
+        rotaAvatar[1]
+      );
+
+      if (!avatar) {
+        return responderJSON(res, 404, {
+          sucesso: false,
+          mensagem: 'Avatar não encontrado.'
+        });
+      }
+
+      res.writeHead(200, {
+        'Content-Type': avatar.mime,
+        'Cache-Control':
+          'public, max-age=86400, immutable',
+        'X-Content-Type-Options': 'nosniff'
+      });
+
+      return fs.createReadStream(
+        avatar.arquivo
+      ).pipe(res);
+    }
+
     if (rota === '/api/status' && req.method === 'GET') {
       if (!exigirAutenticacao(req, res)) {
         return;
@@ -336,9 +1164,22 @@ function iniciarServidor() {
         return;
       }
 
+      const sessao = obterSessaoAtual(req);
+      const todosBots = listarStatusBots();
+
+      const bots =
+        sessao.tipo === 'proprietario'
+          ? todosBots
+          : todosBots.filter(
+              bot =>
+                bot.contaId &&
+                String(bot.contaId) ===
+                  String(sessao.contaId)
+            );
+
       return responderJSON(res, 200, {
         sucesso: true,
-        bots: listarStatusBots()
+        bots
       });
     }
 
@@ -346,6 +1187,28 @@ function iniciarServidor() {
       if (!exigirAutenticacao(req, res)) {
         return;
       }
+
+      if (!exigirLicencaAtiva(req, res)) {
+        return;
+      }
+
+      const sessao = obterSessaoAtual(req);
+
+      if (
+        sessao.tipo !== 'proprietario' &&
+        !sessao.contaId
+      ) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Sessão sem permissão para hospedar bots.'
+        });
+      }
+
+      const contaIdBot =
+        sessao.tipo === 'proprietario'
+          ? null
+          : sessao.contaId;
 
       try {
         const corpo = await lerJSON(req);
@@ -358,11 +1221,13 @@ function iniciarServidor() {
 
         if (tipo === 'diretorio') {
           bot = adicionarPorDiretorio({
+            contaId: contaIdBot,
             nome: corpo.nome,
             diretorio: corpo.diretorio
           });
         } else if (tipo === 'git') {
           bot = await adicionarPorRepositorio({
+            contaId: contaIdBot,
             nome: corpo.nome,
             repositorio: corpo.repositorio,
             branch: corpo.branch || 'main'
@@ -438,19 +1303,26 @@ function iniciarServidor() {
         return;
       }
 
+      if (!exigirLicencaAtiva(req, res)) {
+        return;
+      }
+
       const idBot = rotaConfigurarBot[1];
+
+      const acessoBot =
+        obterBotAutorizado(req, idBot);
+
+      if (!acessoBot.autorizado) {
+        return responderJSON(res, 404, {
+          sucesso: false,
+          mensagem: 'Bot não encontrado.'
+        });
+      }
 
       try {
         const corpo = await lerJSON(req);
 
-        const botAtual = obterBot(idBot);
-
-        if (!botAtual) {
-          return responderJSON(res, 404, {
-            sucesso: false,
-            mensagem: 'Bot não encontrado.'
-          });
-        }
+        const botAtual = acessoBot.bot;
 
         const status = obterStatusBot(idBot);
 
@@ -528,7 +1400,21 @@ function iniciarServidor() {
         return;
       }
 
+      if (!exigirLicencaAtiva(req, res)) {
+        return;
+      }
+
       const idBot = rotaRemoverBot[1];
+
+      const acessoBot =
+        obterBotAutorizado(req, idBot);
+
+      if (!acessoBot.autorizado) {
+        return responderJSON(res, 404, {
+          sucesso: false,
+          mensagem: 'Bot não encontrado.'
+        });
+      }
 
       try {
         const resultado =
@@ -571,8 +1457,22 @@ function iniciarServidor() {
         return;
       }
 
+      if (!exigirLicencaAtiva(req, res)) {
+        return;
+      }
+
       const idBot = rotaBot[1];
       const acao = rotaBot[2];
+
+      const acessoBot =
+        obterBotAutorizado(req, idBot);
+
+      if (!acessoBot.autorizado) {
+        return responderJSON(res, 404, {
+          sucesso: false,
+          mensagem: 'Bot não encontrado.'
+        });
+      }
 
       try {
         if (

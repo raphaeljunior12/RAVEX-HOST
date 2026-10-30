@@ -168,6 +168,7 @@ function obterStatusBot(idBot) {
 
   return {
     id: bot.id,
+    contaId: bot.contaId ?? null,
     nome: bot.nome,
     online,
     status: online ? 'online' : 'offline',

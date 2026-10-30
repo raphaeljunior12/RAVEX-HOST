@@ -3,17 +3,35 @@ const crypto = require('crypto');
 const DURACAO_SESSAO_MS = 24 * 60 * 60 * 1000;
 const sessoes = new Map();
 
-function criarSessao() {
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiraEm = Date.now() + DURACAO_SESSAO_MS;
+function criarSessao({
+  contaId = null,
+  tipo = 'usuario'
+} = {}) {
+  const token = crypto
+    .randomBytes(32)
+    .toString('hex');
 
-  sessoes.set(token, {
+  const criadaEm = Date.now();
+  const expiraEm =
+    criadaEm + DURACAO_SESSAO_MS;
+
+  const sessao = {
+    contaId:
+      contaId === null
+        ? null
+        : String(contaId),
+
+    tipo: String(tipo || 'usuario'),
+
+    criadaEm,
     expiraEm
-  });
+  };
+
+  sessoes.set(token, sessao);
 
   return {
     token,
-    expiraEm
+    ...sessao
   };
 }
 
@@ -33,7 +51,9 @@ function obterSessao(token) {
     return null;
   }
 
-  return sessao;
+  return {
+    ...sessao
+  };
 }
 
 function destruirSessao(token) {
