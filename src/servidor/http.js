@@ -48,8 +48,21 @@ const {
 } = require('../servicos/codigoAcesso');
 
 const {
-  enviarCodigoProprietario
+  enviarCodigoProprietario,
+  enviarCodigoConfirmacaoUsuario
 } = require('../servicos/email');
+
+const {
+  gerarCodigoConfirmacao,
+  verificarCodigoConfirmacao,
+  invalidarConfirmacaoEmail
+} = require('../servicos/confirmacaoEmail');
+
+const {
+  criarCadastroPendente,
+  obterCadastroPendente,
+  removerCadastroPendente
+} = require('../servicos/cadastrosPendentes');
 
 const {
   obterStatusBot,
@@ -90,6 +103,31 @@ const {
   obterResumoAdmin,
   pesquisarAdmin
 } = require('../servicos/administracao');
+
+const {
+  listarProdutos,
+  criarProduto,
+  atualizarProduto,
+  removerProduto,
+  solicitarAluguel,
+  listarAlugueis,
+  criarSubmissaoBotAluguel,
+  listarSubmissoes,
+  decidirSubmissao
+} = require('../servicos/marketplace');
+
+const {
+  listarNovidades,
+  criarNovidade,
+  atualizarNovidade,
+  removerNovidade
+} = require('../servicos/novidades');
+
+const {
+  gerarCodigoAluguel,
+  consumirCodigoAluguel,
+  validarConfirmacaoAluguel
+} = require('../servicos/codigosAluguel');
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT) || 3000;
@@ -400,32 +438,207 @@ function iniciarServidor() {
 
     const rota = url.pathname;
 
-    if (rota === '/api/cadastro' && req.method === 'POST') {
+    if (
+      rota === '/api/cadastro/solicitar-confirmacao' &&
+      req.method === 'POST'
+    ) {
+      let cadastroPendente = null;
+
       try {
         const corpo = await lerJSON(req);
 
-        const resultado = await cadastrarUsuario({
-          nome: corpo.nome,
-          username: corpo.username,
-          email: corpo.email,
-          senha: corpo.senha,
-          confirmarSenha: corpo.confirmarSenha,
-          codigo: corpo.codigo
+        cadastroPendente =
+          criarCadastroPendente({
+            nome: corpo.nome,
+            username: corpo.username,
+            email: corpo.email,
+            senha: corpo.senha,
+            confirmarSenha:
+              corpo.confirmarSenha,
+            codigo: corpo.codigo
+          });
+
+        const confirmacao =
+          gerarCodigoConfirmacao(
+            cadastroPendente.email
+          );
+
+        try {
+          await enviarCodigoConfirmacaoUsuario({
+            destino: cadastroPendente.email,
+            codigo: confirmacao.codigo
+          });
+        } catch (erroEmail) {
+          invalidarConfirmacaoEmail(
+            cadastroPendente.email
+          );
+
+          removerCadastroPendente(
+            cadastroPendente.id
+          );
+
+          console.error(
+            '[RAVEX-HOST] Falha ao enviar ' +
+            'confirmação de cadastro:',
+            erroEmail.message
+          );
+
+          return responderJSON(res, 502, {
+            sucesso: false,
+            mensagem:
+              'Não foi possível enviar o ' +
+              'código de confirmação.'
+          });
+        }
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+
+          mensagem:
+            'Enviámos um código de 6 dígitos ' +
+            'para o teu e-mail.',
+
+          verificacaoId:
+            cadastroPendente.id,
+
+          expiraEm:
+            confirmacao.expiraEm
         });
+      } catch (erro) {
+        if (
+          cadastroPendente &&
+          cadastroPendente.id
+        ) {
+          removerCadastroPendente(
+            cadastroPendente.id
+          );
+        }
+
+        const mensagens = {
+          SENHAS_DIFERENTES:
+            'As senhas não são iguais.',
+
+          CODIGO_OBRIGATORIO:
+            'Informe o código de acesso.',
+
+          CODIGO_INVALIDO_OU_ESGOTADO:
+            'Código de acesso inválido ou esgotado.',
+
+          EMAIL_INVALIDO:
+            'E-mail inválido.'
+        };
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível iniciar o cadastro.'
+        });
+      }
+    }
+
+    if (
+      rota === '/api/cadastro/confirmar-email' &&
+      req.method === 'POST'
+    ) {
+      try {
+        const corpo = await lerJSON(req);
+
+        const verificacaoId = String(
+          corpo.verificacaoId || ''
+        ).trim();
+
+        const codigoEmail = String(
+          corpo.codigoEmail || ''
+        ).trim();
+
+        if (!verificacaoId) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem:
+              'Identificação da confirmação inválida.'
+          });
+        }
+
+        if (!/^\d{6}$/.test(codigoEmail)) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem:
+              'Informe o código de 6 dígitos.'
+          });
+        }
+
+        const pendente =
+          obterCadastroPendente(
+            verificacaoId
+          );
+
+        if (!pendente) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem:
+              'Esta confirmação expirou ou ' +
+              'não existe. Solicite um novo código.'
+          });
+        }
+
+        const codigoCorreto =
+          verificarCodigoConfirmacao(
+            pendente.email,
+            codigoEmail
+          );
+
+        if (!codigoCorreto) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem:
+              'Código de confirmação inválido ' +
+              'ou expirado.'
+          });
+        }
+
+        /*
+         * Somente agora criamos a conta.
+         * cadastrarUsuario valida novamente
+         * o código RAVEX e só depois o consome.
+         */
+        const resultado =
+          await cadastrarUsuario({
+            nome: pendente.nome,
+            username: pendente.username,
+            email: pendente.email,
+            senha: pendente.senha,
+            confirmarSenha:
+              pendente.confirmarSenha,
+            codigo: pendente.codigo
+          });
+
+        removerCadastroPendente(
+          verificacaoId
+        );
 
         return responderJSON(res, 201, {
           sucesso: true,
-          mensagem: 'Conta criada e acesso ativado com sucesso.',
+
+          mensagem:
+            'E-mail confirmado. Conta criada ' +
+            'e acesso ativado com sucesso.',
 
           conta: resultado.conta,
 
           licenca: {
-            plano: resultado.licenca.plano,
-            status: resultado.licenca.status,
+            plano:
+              resultado.licenca.plano,
+
+            status:
+              resultado.licenca.status,
+
             diasRestantes:
               resultado.licenca.diasRestantes,
+
             ativadoEm:
               resultado.licenca.ativadoEm,
+
             expiraEm:
               resultado.licenca.expiraEm
           }
@@ -439,7 +652,8 @@ function iniciarServidor() {
             'Informe o código de acesso.',
 
           CODIGO_INVALIDO_OU_ESGOTADO:
-            'Código de acesso inválido ou esgotado.',
+            'O código RAVEX tornou-se inválido ' +
+            'ou ficou sem vagas.',
 
           CODIGO_INVALIDO:
             'Código de acesso inválido.',
@@ -457,7 +671,8 @@ function iniciarServidor() {
             'E-mail inválido.',
 
           SENHA_INVALIDA:
-            'A senha deve possuir entre 8 e 128 caracteres.',
+            'A senha deve possuir entre ' +
+            '8 e 128 caracteres.',
 
           EMAIL_JA_CADASTRADO:
             'Este e-mail já possui uma conta.',
@@ -466,26 +681,30 @@ function iniciarServidor() {
             'Este username já está em uso.'
         };
 
-        if (erro.message === 'PAYLOAD_MUITO_GRANDE') {
-          return responderJSON(res, 413, {
-            sucesso: false,
-            mensagem: 'Requisição muito grande.'
-          });
-        }
-
-        const mensagem = mensagens[erro.message];
-
-        return responderJSON(
-          res,
-          mensagem ? 400 : 500,
-          {
-            sucesso: false,
-            mensagem:
-              mensagem ||
-              'Não foi possível criar a conta.'
-          }
+        console.error(
+          '[RAVEX-HOST] Erro ao concluir cadastro:',
+          erro.message
         );
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível concluir o cadastro.'
+        });
       }
+    }
+
+    if (
+      rota === '/api/cadastro' &&
+      req.method === 'POST'
+    ) {
+      return responderJSON(res, 410, {
+        sucesso: false,
+        mensagem:
+          'O cadastro direto foi desativado. ' +
+          'Confirme primeiro o seu e-mail.'
+      });
     }
 
     if (
@@ -1652,6 +1871,867 @@ function iniciarServidor() {
       return fs.createReadStream(
         avatar.arquivo
       ).pipe(res);
+    }
+
+
+    // =====================================================
+    // RAVEX-HOST - MARKETPLACE API
+    // =====================================================
+
+    // Catálogo público para utilizadores autenticados.
+    if (
+      rota === '/api/marketplace' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      const tipo =
+        String(
+          url.searchParams.get('tipo') || ''
+        )
+          .trim()
+          .toLowerCase();
+
+      const permitidos = new Set([
+        'api',
+        'bot-venda',
+        'bot-free',
+        'script',
+        'bot-aluguel'
+      ]);
+
+      if (tipo && !permitidos.has(tipo)) {
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            'Tipo de produto inválido.'
+        });
+      }
+
+      const produtos = listarProdutos({
+        tipo: tipo || null,
+        somenteAtivos:
+          sessao.tipo !== 'proprietario'
+      });
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: produtos.length,
+        produtos
+      });
+    }
+
+
+    // Proprietário adiciona produtos ao catálogo.
+    if (
+      rota === '/api/proprietario/marketplace' &&
+      req.method === 'POST'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const produto = criarProduto({
+          tipo: corpo.tipo,
+          nome: corpo.nome,
+          descricao: corpo.descricao,
+          preco: corpo.preco,
+          moeda: corpo.moeda,
+          gratuito: corpo.gratuito,
+          versao: corpo.versao,
+          url: corpo.url,
+          conteudoPublico:
+            corpo.conteudoPublico,
+          periodoAluguel:
+            corpo.periodoAluguel,
+          ativo:
+            corpo.ativo !== false
+        });
+
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem:
+            'Produto adicionado com sucesso.',
+          produto
+        });
+      } catch (erro) {
+        const mensagens = {
+          TIPO_INVALIDO:
+            'Tipo de produto inválido.',
+          NOME_INVALIDO:
+            'Nome inválido.',
+          DESCRICAO_INVALIDA:
+            'Descrição inválida.',
+          PRECO_INVALIDO:
+            'Preço inválido.'
+        };
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível adicionar o produto.'
+        });
+      }
+    }
+
+
+    // Editar produto.
+    const rotaEditarMarketplace =
+      rota.match(
+        /^\/api\/proprietario\/marketplace\/([^/]+)$/
+      );
+
+    if (
+      rotaEditarMarketplace &&
+      req.method === 'PATCH'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const produto = atualizarProduto(
+          decodeURIComponent(
+            rotaEditarMarketplace[1]
+          ),
+          corpo
+        );
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem:
+            'Produto atualizado com sucesso.',
+          produto
+        });
+      } catch (erro) {
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            erro.message ===
+            'PRODUTO_NAO_ENCONTRADO'
+              ? 'Produto não encontrado.'
+              : 'Não foi possível atualizar o produto.'
+        });
+      }
+    }
+
+
+    // Remover produto.
+    const rotaRemoverMarketplace =
+      rota.match(
+        /^\/api\/proprietario\/marketplace\/([^/]+)$/
+      );
+
+    if (
+      rotaRemoverMarketplace &&
+      req.method === 'DELETE'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const removido = removerProduto(
+          decodeURIComponent(
+            rotaRemoverMarketplace[1]
+          )
+        );
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem:
+            'Produto removido com sucesso.',
+          produto: removido
+        });
+      } catch {
+        return responderJSON(res, 404, {
+          sucesso: false,
+          mensagem: 'Produto não encontrado.'
+        });
+      }
+    }
+
+
+    // Cliente solicita aluguel de um bot.
+    if (
+      rota === '/api/alugueis' &&
+      req.method === 'POST'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (!sessao.contaId) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'É necessária uma conta de cliente.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const pedido = solicitarAluguel({
+          produtoId: corpo.produtoId,
+          contaId: sessao.contaId,
+          grupoWhatsApp:
+            corpo.grupoWhatsApp,
+          observacao: corpo.observacao
+        });
+
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem:
+            'Pedido de aluguel enviado.',
+          pedido
+        });
+      } catch {
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            'Não foi possível solicitar o aluguel.'
+        });
+      }
+    }
+
+
+    // Cliente consulta os próprios pedidos.
+    if (
+      rota === '/api/meus-alugueis' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (!sessao.contaId) {
+        return responderJSON(res, 200, {
+          sucesso: true,
+          total: 0,
+          alugueis: []
+        });
+      }
+
+      const alugueis = listarAlugueis({
+        contaId: sessao.contaId
+      });
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: alugueis.length,
+        alugueis
+      });
+    }
+
+
+    // Proprietário consulta todos os alugueis.
+    if (
+      rota === '/api/proprietario/alugueis' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const alugueis = listarAlugueis();
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: alugueis.length,
+        alugueis
+      });
+    }
+
+
+    // Proprietário gera código de autorização.
+    if (
+      rota ===
+        '/api/proprietario/codigos-aluguel' &&
+      req.method === 'POST'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const resultado =
+          gerarCodigoAluguel({
+            validadeMinutos:
+              Number(
+                corpo.validadeMinutos || 60
+              )
+          });
+
+        /*
+         * O código puro só aparece nesta resposta.
+         * O ficheiro persistente guarda apenas o hash.
+         */
+        return responderJSON(res, 201, {
+          sucesso: true,
+          codigo: resultado.codigo,
+          expiraEm: resultado.expiraEm
+        });
+      } catch {
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            'Não foi possível gerar o código.'
+        });
+      }
+    }
+
+
+    /*
+     * Cliente valida/consome o código recebido
+     * antes de poder enviar o próprio bot para
+     * publicação no catálogo de aluguel.
+     */
+    if (
+      rota === '/api/codigos-aluguel/confirmar' &&
+      req.method === 'POST'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (!sessao.contaId) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'É necessária uma conta de cliente.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const resultado =
+          consumirCodigoAluguel({
+            codigo: corpo.codigo,
+            contaId: sessao.contaId
+          });
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem:
+            'Código confirmado com sucesso.',
+          confirmacaoId: resultado.id
+        });
+      } catch (erro) {
+        const mensagens = {
+          CODIGO_INVALIDO:
+            'Código de confirmação inválido.',
+          CODIGO_JA_USADO:
+            'Este código já foi utilizado.',
+          CODIGO_EXPIRADO:
+            'Este código expirou.'
+        };
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível confirmar o código.'
+        });
+      }
+    }
+
+
+
+    // =====================================================
+    // RAVEX-HOST - SUBMISSOES DE BOTS PARA ALUGUEL
+    // =====================================================
+
+    // Cliente envia o próprio bot para análise.
+    if (
+      rota === '/api/marketplace/submissoes' &&
+      req.method === 'POST'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (!sessao.contaId) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem: 'É necessária uma conta de cliente.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const confirmacaoId = String(
+          corpo.confirmacaoId || ''
+        ).trim();
+
+        if (
+          !validarConfirmacaoAluguel({
+            confirmacaoId,
+            contaId: sessao.contaId
+          })
+        ) {
+          return responderJSON(res, 403, {
+            sucesso: false,
+            mensagem:
+              'Confirmação de aluguel inválida para esta conta.'
+          });
+        }
+
+        const submissao =
+          criarSubmissaoBotAluguel({
+            contaId: sessao.contaId,
+            confirmacaoId,
+            nome: corpo.nome,
+            descricao: corpo.descricao,
+            preco: corpo.preco,
+            moeda: corpo.moeda || 'AOA',
+            periodoAluguel:
+              corpo.periodoAluguel,
+            url: corpo.url
+          });
+
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem:
+            'Bot enviado para análise do proprietário.',
+          submissao
+        });
+      } catch (erro) {
+        const mensagens = {
+          CONTA_INVALIDA:
+            'Conta inválida.',
+          NOME_INVALIDO:
+            'Nome do bot inválido.',
+          DESCRICAO_INVALIDA:
+            'Descrição inválida.',
+          PRECO_INVALIDO:
+            'Preço inválido.',
+          CONFIRMACAO_INVALIDA:
+            'Confirmação inválida.',
+          CONFIRMACAO_JA_USADA:
+            'Esta confirmação já foi utilizada numa submissão.'
+        };
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível enviar o bot.'
+        });
+      }
+    }
+
+
+    // Cliente consulta as próprias submissões.
+    if (
+      rota === '/api/marketplace/minhas-submissoes' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (!sessao.contaId) {
+        return responderJSON(res, 200, {
+          sucesso: true,
+          total: 0,
+          submissoes: []
+        });
+      }
+
+      const submissoes = listarSubmissoes({
+        contaId: sessao.contaId
+      });
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: submissoes.length,
+        submissoes
+      });
+    }
+
+
+    // Proprietário consulta todas as submissões.
+    if (
+      rota ===
+        '/api/proprietario/marketplace/submissoes' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const status = String(
+        url.searchParams.get('status') || ''
+      ).trim();
+
+      const submissoes = listarSubmissoes({
+        status: status || null
+      });
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: submissoes.length,
+        submissoes
+      });
+    }
+
+
+    // Proprietário aprova ou rejeita uma submissão.
+    const rotaDecidirSubmissao = rota.match(
+      /^\/api\/proprietario\/marketplace\/submissoes\/([^/]+)$/
+    );
+
+    if (
+      rotaDecidirSubmissao &&
+      req.method === 'PATCH'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const resultado = decidirSubmissao({
+          id: decodeURIComponent(
+            rotaDecidirSubmissao[1]
+          ),
+          status: String(
+            corpo.status || ''
+          ).trim().toLowerCase(),
+          motivo: corpo.motivo
+        });
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem:
+            resultado.submissao.status === 'aprovado'
+              ? 'Bot aprovado e publicado para aluguel.'
+              : 'Submissão rejeitada.',
+          ...resultado
+        });
+      } catch (erro) {
+        const mensagens = {
+          STATUS_INVALIDO:
+            'Use aprovado ou rejeitado.',
+          SUBMISSAO_NAO_ENCONTRADA:
+            'Submissão não encontrada.',
+          SUBMISSAO_JA_DECIDIDA:
+            'Esta submissão já foi analisada.'
+        };
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            mensagens[erro.message] ||
+            'Não foi possível analisar a submissão.'
+        });
+      }
+    }
+
+
+
+    // ROTA_NOVIDADES_RAVEX
+
+    // Utilizadores autenticados consultam novidades publicadas.
+    if (
+      rota === '/api/novidades' &&
+      req.method === 'GET'
+    ) {
+      if (!exigirAutenticacao(req, res)) return;
+
+      const sessao = obterSessaoAtual(req);
+      const incluirOcultas =
+        sessao.tipo === 'proprietario' &&
+        url.searchParams.get('todas') === '1';
+
+      const novidades = listarNovidades({
+        incluirOcultas
+      });
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: novidades.length,
+        novidades
+      });
+    }
+
+    // Proprietário publica uma novidade.
+    if (
+      rota === '/api/proprietario/novidades' &&
+      req.method === 'POST'
+    ) {
+      if (!exigirAutenticacao(req, res)) return;
+
+      const sessao = obterSessaoAtual(req);
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem: 'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const novidade = criarNovidade({
+          titulo: corpo.titulo,
+          conteudo: corpo.conteudo,
+          tipo: corpo.tipo,
+          importante: corpo.importante === true,
+          publicada: corpo.publicada !== false
+        });
+
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem: 'Novidade criada com sucesso.',
+          novidade
+        });
+      } catch (erro) {
+        const mensagens = {
+          TITULO_NOVIDADE_INVALIDO: 'O título deve ter pelo menos 3 caracteres.',
+          CONTEUDO_NOVIDADE_INVALIDO: 'O conteúdo deve ter pelo menos 3 caracteres.'
+        };
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem: mensagens[erro.message] ||
+            'Não foi possível criar a novidade.'
+        });
+      }
+    }
+
+    // Proprietário edita ou oculta uma novidade.
+    const rotaEditarNovidade = rota.match(
+      /^\/api\/proprietario\/novidades\/([^/]+)$/
+    );
+
+    if (
+      rotaEditarNovidade &&
+      req.method === 'PATCH'
+    ) {
+      if (!exigirAutenticacao(req, res)) return;
+
+      const sessao = obterSessaoAtual(req);
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem: 'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+        const alteracoes = {};
+
+        for (const campo of [
+          'titulo',
+          'conteudo',
+          'importante',
+          'publicada'
+        ]) {
+          if (Object.prototype.hasOwnProperty.call(corpo, campo)) {
+            alteracoes[campo] = corpo[campo];
+          }
+        }
+
+        const novidade = atualizarNovidade(
+          decodeURIComponent(rotaEditarNovidade[1]),
+          alteracoes
+        );
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem: 'Novidade atualizada.',
+          novidade
+        });
+      } catch (erro) {
+        const mensagens = {
+          NOVIDADE_NAO_ENCONTRADA: 'Novidade não encontrada.',
+          TITULO_NOVIDADE_INVALIDO: 'Título inválido.',
+          CONTEUDO_NOVIDADE_INVALIDO: 'Conteúdo inválido.'
+        };
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem: mensagens[erro.message] ||
+            'Não foi possível atualizar a novidade.'
+        });
+      }
+    }
+
+    // Proprietário remove uma novidade.
+    const rotaRemoverNovidade = rota.match(
+      /^\/api\/proprietario\/novidades\/([^/]+)$/
+    );
+
+    if (
+      rotaRemoverNovidade &&
+      req.method === 'DELETE'
+    ) {
+      if (!exigirAutenticacao(req, res)) return;
+
+      const sessao = obterSessaoAtual(req);
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem: 'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const removida = removerNovidade(
+          decodeURIComponent(rotaRemoverNovidade[1])
+        );
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem: 'Novidade removida.',
+          novidade: removida
+        });
+      } catch (erro) {
+        return responderJSON(res, 404, {
+          sucesso: false,
+          mensagem: 'Novidade não encontrada.'
+        });
+      }
     }
 
     if (rota === '/api/status' && req.method === 'GET') {

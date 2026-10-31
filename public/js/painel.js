@@ -2402,6 +2402,14 @@ const botaoSair =
   document.getElementById('sairPainel');
 
 botaoSair.addEventListener('click', async () => {
+  const confirmarSaida = window.confirm(
+    'Tens a certeza de que pretendes sair da tua conta?'
+  );
+
+  if (!confirmarSaida) {
+    return;
+  }
+
   botaoSair.disabled = true;
   botaoSair.textContent = '⏳ Saindo...';
 
@@ -2702,3 +2710,1744 @@ setTimeout(
   configurarMenuFinalRavex,
   500
 );
+
+
+/* =========================================================
+   RAVEX-HOST — DESTINOS REAIS DO MENU
+   ========================================================= */
+
+function ravexEscaparHtml(valor = '') {
+  return String(valor)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function ravexObterAreaPaginas() {
+  return (
+    document.querySelector('main') ||
+    document.querySelector('.conteudo-principal') ||
+    document.body
+  );
+}
+
+function ravexCriarDestinoMenu(nome, titulo, descricao) {
+  let pagina = document.querySelector(
+    `[data-pagina-conteudo="${nome}"]`
+  );
+
+  if (pagina) return pagina;
+
+  pagina = document.createElement('section');
+  pagina.className = 'oculto ravex-pagina-menu';
+  pagina.dataset.paginaConteudo = nome;
+
+  pagina.innerHTML = `
+    <div class="ravex-destino-cabecalho">
+      <div>
+        <small>RAVEX-HOST</small>
+        <h2>${ravexEscaparHtml(titulo)}</h2>
+        <p>${ravexEscaparHtml(descricao)}</p>
+      </div>
+    </div>
+
+    <div
+      class="ravex-destino-conteudo"
+      data-ravex-destino="${ravexEscaparHtml(nome)}"
+    ></div>
+  `;
+
+  ravexObterAreaPaginas().appendChild(pagina);
+
+  return pagina;
+}
+
+function ravexPrepararDestinosMenu() {
+  const destinos = [
+    [
+      'apis',
+      'APIs',
+      'Gere as APIs da tua conta RAVEX-HOST.'
+    ],
+    [
+      'loja',
+      'Loja RAVEX',
+      'Planos, serviços e recursos da RAVEX-HOST.'
+    ],
+    [
+      'licenca',
+      'Licença',
+      'Consulta o estado e os dados da tua licença.'
+    ],
+    [
+      'suporte',
+      'Suporte e Ajuda',
+      'Obtém ajuda e acompanha os teus pedidos de suporte.'
+    ],
+    [
+      'novidades',
+      'Novidades',
+      'Acompanha os avisos e as atualizações da RAVEX-HOST.'
+    ],
+    [
+      'notificacoes',
+      'Notificações',
+      'Consulta os avisos importantes da tua conta.'
+    ],
+    [
+      'seguranca',
+      'Segurança',
+      'Consulta e gere as opções de segurança da tua conta.'
+    ],
+    [
+      'configuracoes',
+      'Configurações',
+      'Personaliza as definições da tua conta RAVEX-HOST.'
+    ],
+    [
+      'relatar-problema',
+      'Relatar problema',
+      'Envia um problema para a equipa RAVEX-HOST.'
+    ],
+    [
+      'pesquisar',
+      'Pesquisar',
+      'Pesquisa clientes, bots e tickets da plataforma.'
+    ],
+    [
+      'clientes-admin',
+      'Clientes',
+      'Administração dos clientes cadastrados.'
+    ],
+    [
+      'bots-admin',
+      'Bots hospedados',
+      'Administração dos bots hospedados na plataforma.'
+    ],
+    [
+      'licencas-admin',
+      'Licenças e códigos',
+      'Administração das licenças e códigos de acesso.'
+    ],
+    [
+      'tickets-admin',
+      'Tickets',
+      'Consulta e administração dos pedidos de suporte.'
+    ],
+    [
+      'atividades-admin',
+      'Atividades',
+      'Histórico administrativo da plataforma.'
+    ]
+  ];
+
+  destinos.forEach(([nome, titulo, descricao]) => {
+    ravexCriarDestinoMenu(nome, titulo, descricao);
+  });
+}
+
+
+/*
+ * Esta versão passa a ser a fonte única para mostrar páginas.
+ */
+mostrarPaginaPainel = function (pagina) {
+  ravexPrepararDestinosMenu();
+
+  const somenteProprietario = new Set([
+    'usuarios-online',
+    'pesquisar',
+    'clientes-admin',
+    'bots-admin',
+    'licencas-admin',
+    'tickets-admin',
+    'atividades-admin'
+  ]);
+
+  if (
+    somenteProprietario.has(pagina) &&
+    minhaConta?.tipo !== 'proprietario'
+  ) {
+    alert(
+      'Esta área está disponível apenas para o proprietário.'
+    );
+
+    pagina = 'inicio';
+  }
+
+  document
+    .querySelectorAll('[data-pagina-conteudo]')
+    .forEach(elemento => {
+      elemento.classList.add('oculto');
+      elemento.classList.remove('ativa');
+    });
+
+  const mostrar = (...nomes) => {
+    nomes.forEach(nome => {
+      const elemento = document.querySelector(
+        `[data-pagina-conteudo="${nome}"]`
+      );
+
+      if (!elemento) return;
+
+      elemento.classList.remove('oculto');
+      elemento.classList.add('ativa');
+    });
+  };
+
+  switch (pagina) {
+    case 'inicio':
+      mostrar('inicio', 'dashboard');
+      break;
+
+    case 'perfil':
+      mostrar('perfil');
+
+      if (typeof abrirPaginaPerfil === 'function') {
+        abrirPaginaPerfil();
+      }
+      break;
+
+    case 'bots':
+      mostrar('bots', 'logs');
+      break;
+
+    case 'sistema':
+      mostrar('sistema');
+      break;
+
+    case 'usuarios-online':
+      mostrar('usuarios-online');
+
+      if (typeof carregarUsuariosOnline === 'function') {
+        carregarUsuariosOnline();
+      }
+      break;
+
+    case 'apis':
+    case 'loja':
+    case 'licenca':
+    case 'suporte':
+    case 'novidades':
+    case 'notificacoes':
+    case 'seguranca':
+    case 'configuracoes':
+    case 'relatar-problema':
+    case 'pesquisar':
+    case 'clientes-admin':
+    case 'bots-admin':
+    case 'licencas-admin':
+    case 'tickets-admin':
+    case 'atividades-admin':
+      mostrar(pagina);
+      break;
+
+    default:
+      pagina = 'inicio';
+      mostrar('inicio', 'dashboard');
+      break;
+  }
+
+  atualizarPaginaAtiva(pagina);
+
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+};
+
+
+/*
+ * Completa os destinos dos itens que originalmente
+ * não possuíam data-menu-pagina no HTML.
+ */
+const ravexDestinosIds = {
+  menuNotificacoes: 'notificacoes',
+  menuSeguranca: 'seguranca',
+  menuConfiguracoes: 'configuracoes',
+  menuClientes: 'clientes-admin',
+  menuLicencasAdmin: 'licencas-admin',
+  menuTicketsAdmin: 'tickets-admin',
+  menuAtividadesAdmin: 'atividades-admin'
+};
+
+Object.entries(ravexDestinosIds).forEach(
+  ([id, destino]) => {
+    const botao = document.getElementById(id);
+
+    if (!botao) return;
+
+    botao.dataset.menuPagina = destino;
+
+    /*
+     * Estes elementos não estavam presentes na seleção
+     * inicial de [data-menu-pagina], por isso precisam
+     * de um listener próprio.
+     */
+    botao.addEventListener('click', () => {
+      navegarPainel(destino);
+
+      fecharMenuRavex({
+        devolverFoco: false
+      });
+    });
+  }
+);
+
+ravexPrepararDestinosMenu();
+
+/* =========================================================
+   RAVEX-HOST — MARKETPLACE FUNCIONAL
+   ========================================================= */
+
+function ravexMoeda(valor, moeda = 'AOA') {
+  const numero = Number(valor || 0);
+
+  try {
+    return new Intl.NumberFormat('pt-PT', {
+      style: 'currency',
+      currency: moeda || 'AOA'
+    }).format(numero);
+  } catch {
+    return `${numero} ${moeda || 'AOA'}`;
+  }
+}
+
+async function ravexFetchJSON(url, opcoes = {}) {
+  const configuracao = {
+    cache: 'no-store',
+    ...opcoes
+  };
+
+  configuracao.headers = {
+    ...(opcoes.body
+      ? { 'Content-Type': 'application/json' }
+      : {}),
+    ...(opcoes.headers || {})
+  };
+
+  const resposta = await fetch(
+    url,
+    configuracao
+  );
+
+  let dados = {};
+
+  try {
+    dados = await resposta.json();
+  } catch {
+    dados = {};
+  }
+
+  if (!resposta.ok) {
+    throw new Error(
+      dados.mensagem ||
+      `Erro HTTP ${resposta.status}`
+    );
+  }
+
+  return dados;
+}
+
+function ravexElementoPagina(nome) {
+  return document.querySelector(
+    `[data-pagina-conteudo="${nome}"]`
+  );
+}
+
+function ravexMensagem(
+  elemento,
+  mensagem,
+  erro = false
+) {
+  if (!elemento) return;
+
+  elemento.textContent = mensagem || '';
+
+  elemento.classList.toggle(
+    'ravex-mensagem-erro',
+    Boolean(erro)
+  );
+}
+
+async function ravexCarregarProdutos(tipo = '') {
+  const sufixo = tipo
+    ? `?tipo=${encodeURIComponent(tipo)}`
+    : '';
+
+  const dados = await ravexFetchJSON(
+    `/api/marketplace${sufixo}`
+  );
+
+  return Array.isArray(dados.produtos)
+    ? dados.produtos
+    : [];
+}
+
+function ravexCardProduto(produto) {
+  const gratuito =
+    produto.gratuito === true ||
+    Number(produto.preco) === 0;
+
+  const preco = gratuito
+    ? 'Grátis'
+    : ravexMoeda(
+        produto.preco,
+        produto.moeda
+      );
+
+  return `
+    <article class="ravex-market-card">
+      <div class="ravex-market-topo">
+        <strong>
+          ${ravexEscaparHtml(produto.nome)}
+        </strong>
+
+        <span class="ravex-market-preco">
+          ${ravexEscaparHtml(preco)}
+        </span>
+      </div>
+
+      <p>
+        ${ravexEscaparHtml(
+          produto.descricao
+        )}
+      </p>
+
+      <div class="ravex-market-acoes">
+        ${
+          produto.tipo === 'script' &&
+          produto.conteudoPublico
+            ? `
+              <button
+                type="button"
+                class="ravex-btn-secundario"
+                data-ravex-ver-script="${ravexEscaparHtml(produto.id)}"
+              >
+                Ver script
+              </button>
+            `
+            : ''
+        }
+
+        ${
+          produto.tipo === 'bot-aluguel'
+            ? `
+              <button
+                type="button"
+                class="ravex-btn-principal"
+                data-ravex-alugar="${ravexEscaparHtml(produto.id)}"
+              >
+                Alugar bot
+              </button>
+            `
+            : ''
+        }
+
+        ${
+          produto.url
+            ? `
+              <a
+                class="ravex-btn-secundario"
+                href="${ravexEscaparHtml(produto.url)}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Abrir
+              </a>
+            `
+            : ''
+        }
+      </div>
+    </article>
+  `;
+}
+
+async function ravexRenderizarAPIs() {
+  const pagina =
+    ravexElementoPagina('apis');
+
+  if (!pagina) return;
+
+  pagina.innerHTML = `
+    <section class="ravex-market-secao">
+      <div class="ravex-destino-cabecalho">
+        <div>
+          <span class="ravex-market-etiqueta">
+            RAVEX API
+          </span>
+
+          <h2>APIs</h2>
+
+          <p>
+            APIs disponíveis no RAVEX-HOST.
+          </p>
+        </div>
+
+        ${
+          minhaConta?.tipo === 'proprietario'
+            ? `
+              <button
+                type="button"
+                id="ravexAdicionarApi"
+                class="ravex-btn-principal"
+              >
+                + Adicionar API
+              </button>
+            `
+            : ''
+        }
+      </div>
+
+      <div
+        id="ravexListaApis"
+        class="ravex-market-grid"
+      >
+        <p>A carregar APIs...</p>
+      </div>
+    </section>
+  `;
+
+  try {
+    const produtos =
+      await ravexCarregarProdutos('api');
+
+    const lista =
+      document.getElementById(
+        'ravexListaApis'
+      );
+
+    if (!lista) return;
+
+    lista.innerHTML = produtos.length
+      ? produtos
+          .map(ravexCardProduto)
+          .join('')
+      : `
+        <div class="ravex-market-vazio">
+          Ainda não existem APIs publicadas.
+        </div>
+      `;
+  } catch (erro) {
+    const lista =
+      document.getElementById(
+        'ravexListaApis'
+      );
+
+    if (lista) {
+      lista.innerHTML = `
+        <div class="ravex-market-vazio">
+          ${ravexEscaparHtml(erro.message)}
+        </div>
+      `;
+    }
+  }
+}
+
+/* RAVEX MARKETPLACE — PARTE 2: LOJA */
+
+async function ravexRenderizarLoja() {
+  const pagina = ravexElementoPagina('loja');
+
+  if (!pagina) return;
+
+  const proprietario =
+    minhaConta?.tipo === 'proprietario';
+
+  pagina.innerHTML = `
+    <section class="ravex-market-secao">
+      <div class="ravex-destino-cabecalho">
+        <div>
+          <span class="ravex-market-etiqueta">
+            Marketplace
+          </span>
+
+          <h2>Loja RAVEX</h2>
+
+          <p>
+            Bots, scripts e serviços disponíveis.
+          </p>
+        </div>
+
+        ${
+          proprietario
+            ? `
+              <button
+                type="button"
+                id="ravexAdicionarProduto"
+                class="ravex-btn-principal"
+              >
+                + Adicionar produto
+              </button>
+            `
+            : ''
+        }
+      </div>
+
+      <div class="ravex-market-filtros">
+        <button
+          type="button"
+          data-ravex-filtro=""
+        >
+          Tudo
+        </button>
+
+        <button
+          type="button"
+          data-ravex-filtro="bot-venda"
+        >
+          Bots à venda
+        </button>
+
+        <button
+          type="button"
+          data-ravex-filtro="bot-free"
+        >
+          Bots Free
+        </button>
+
+        <button
+          type="button"
+          data-ravex-filtro="script"
+        >
+          Scripts
+        </button>
+
+        <button
+          type="button"
+          data-ravex-filtro="bot-aluguel"
+        >
+          Bots para aluguel
+        </button>
+      </div>
+
+      <div class="ravex-market-utilizador-acoes">
+        ${
+          proprietario
+            ? `
+              <button
+                type="button"
+                id="ravexGerarCodigoAluguel"
+                class="ravex-btn-secundario"
+              >
+                Gerar código
+              </button>
+
+              <button
+                type="button"
+                id="ravexVerSubmissoes"
+                class="ravex-btn-secundario"
+              >
+                Bots para aprovação
+              </button>
+            `
+            : `
+              <button
+                type="button"
+                id="ravexAdicionarMeuBot"
+                class="ravex-btn-secundario"
+              >
+                Adicionar meu bot
+              </button>
+
+              <button
+                type="button"
+                id="ravexMeusAlugueis"
+                class="ravex-btn-secundario"
+              >
+                Meus alugueis
+              </button>
+            `
+        }
+      </div>
+
+      <div
+        id="ravexListaLoja"
+        class="ravex-market-grid"
+      >
+        <p>A carregar produtos...</p>
+      </div>
+    </section>
+  `;
+
+  await ravexAtualizarListaLoja('');
+
+  pagina
+    .querySelectorAll('[data-ravex-filtro]')
+    .forEach(botao => {
+      botao.addEventListener(
+        'click',
+        async () => {
+          await ravexAtualizarListaLoja(
+            botao.dataset.ravexFiltro || ''
+          );
+        }
+      );
+    });
+
+  document
+    .getElementById('ravexAdicionarProduto')
+    ?.addEventListener('click', () => {
+      ravexAbrirFormularioProduto();
+    });
+
+  document
+    .getElementById('ravexAdicionarMeuBot')
+    ?.addEventListener('click', () => {
+      ravexAbrirAdicionarMeuBot();
+    });
+
+  document
+    .getElementById('ravexMeusAlugueis')
+    ?.addEventListener('click', () => {
+      ravexAbrirMeusAlugueis();
+    });
+
+  document
+    .getElementById('ravexGerarCodigoAluguel')
+    ?.addEventListener('click', () => {
+      ravexGerarCodigo();
+    });
+
+  document
+    .getElementById('ravexVerSubmissoes')
+    ?.addEventListener('click', () => {
+      ravexAbrirSubmissoesAdmin();
+    });
+}
+
+async function ravexAtualizarListaLoja(
+  tipo = ''
+) {
+  const lista =
+    document.getElementById('ravexListaLoja');
+
+  if (!lista) return;
+
+  lista.innerHTML =
+    '<p>A carregar produtos...</p>';
+
+  try {
+    const produtos =
+      await ravexCarregarProdutos(tipo);
+
+    lista.innerHTML = produtos.length
+      ? produtos
+          .map(ravexCardProduto)
+          .join('')
+      : `
+        <div class="ravex-market-vazio">
+          Nenhum produto nesta categoria.
+        </div>
+      `;
+
+    if (
+      typeof ravexLigarAcoesProdutos ===
+      'function'
+    ) {
+      ravexLigarAcoesProdutos();
+    }
+  } catch (erro) {
+    lista.innerHTML = `
+      <div class="ravex-market-vazio">
+        ${ravexEscaparHtml(erro.message)}
+      </div>
+    `;
+  }
+}
+
+/* RAVEX MARKETPLACE — PARTE 3: AÇÕES */
+
+function ravexModal(conteudo) {
+  document
+    .getElementById('ravexModalGlobal')
+    ?.remove();
+
+  const fundo = document.createElement('div');
+
+  fundo.id = 'ravexModalGlobal';
+  fundo.className = 'ravex-modal-fundo';
+
+  fundo.innerHTML = `
+    <div class="ravex-modal-caixa">
+      <button
+        type="button"
+        class="ravex-modal-fechar"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+
+      <div class="ravex-modal-conteudo">
+        ${conteudo}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(fundo);
+
+  fundo
+    .querySelector('.ravex-modal-fechar')
+    ?.addEventListener(
+      'click',
+      () => fundo.remove()
+    );
+
+  fundo.addEventListener(
+    'click',
+    evento => {
+      if (evento.target === fundo) {
+        fundo.remove();
+      }
+    }
+  );
+
+  return fundo;
+}
+
+function ravexLigarAcoesProdutos() {
+  document
+    .querySelectorAll('[data-ravex-ver-script]')
+    .forEach(botao => {
+      botao.addEventListener(
+        'click',
+        async () => {
+          try {
+            const produtos =
+              await ravexCarregarProdutos(
+                'script'
+              );
+
+            const produto = produtos.find(
+              item =>
+                item.id ===
+                botao.dataset.ravexVerScript
+            );
+
+            if (!produto) {
+              throw new Error(
+                'Script não encontrado.'
+              );
+            }
+
+            ravexModal(`
+              <h2>
+                ${ravexEscaparHtml(
+                  produto.nome
+                )}
+              </h2>
+
+              <p>
+                ${ravexEscaparHtml(
+                  produto.descricao
+                )}
+              </p>
+
+              <pre class="ravex-script-publico"><code>${ravexEscaparHtml(
+                produto.conteudoPublico ||
+                'Nenhum conteúdo público disponível.'
+              )}</code></pre>
+            `);
+          } catch (erro) {
+            ravexModal(`
+              <h2>Erro</h2>
+              <p>
+                ${ravexEscaparHtml(
+                  erro.message
+                )}
+              </p>
+            `);
+          }
+        }
+      );
+    });
+
+  document
+    .querySelectorAll('[data-ravex-alugar]')
+    .forEach(botao => {
+      botao.addEventListener(
+        'click',
+        () => {
+          ravexAbrirFormularioAluguel(
+            botao.dataset.ravexAlugar
+          );
+        }
+      );
+    });
+}
+
+function ravexAbrirFormularioProduto(
+  tipoInicial = ''
+) {
+  const modal = ravexModal(`
+    <h2>Adicionar produto</h2>
+
+    <form id="ravexFormProduto">
+      <label>
+        Tipo
+        <select name="tipo" required>
+          <option value="api">API</option>
+          <option value="bot-venda">
+            Bot à venda
+          </option>
+          <option value="bot-free">
+            Bot Free
+          </option>
+          <option value="script">
+            Script
+          </option>
+          <option value="bot-aluguel">
+            Bot para aluguel
+          </option>
+        </select>
+      </label>
+
+      <label>
+        Nome
+        <input
+          name="nome"
+          maxlength="100"
+          required
+        >
+      </label>
+
+      <label>
+        Descrição
+        <textarea
+          name="descricao"
+          maxlength="2000"
+          required
+        ></textarea>
+      </label>
+
+      <label>
+        Preço
+        <input
+          name="preco"
+          type="number"
+          min="0"
+          value="0"
+        >
+      </label>
+
+      <label>
+        Moeda
+        <input
+          name="moeda"
+          value="AOA"
+          maxlength="10"
+        >
+      </label>
+
+      <label>
+        Versão
+        <input
+          name="versao"
+          maxlength="50"
+        >
+      </label>
+
+      <label>
+        URL pública
+        <input
+          name="url"
+          type="url"
+          maxlength="1000"
+        >
+      </label>
+
+      <label>
+        Período de aluguel
+        <input
+          name="periodoAluguel"
+          maxlength="100"
+          placeholder="Ex.: 30 dias"
+        >
+      </label>
+
+      <label>
+        Script / conteúdo público
+        <textarea
+          name="conteudoPublico"
+          maxlength="10000"
+        ></textarea>
+      </label>
+
+      <p
+        id="ravexProdutoMensagem"
+        class="ravex-form-mensagem"
+      ></p>
+
+      <button
+        type="submit"
+        class="ravex-btn-principal"
+      >
+        Publicar
+      </button>
+    </form>
+  `);
+
+  const form =
+    modal.querySelector('#ravexFormProduto');
+
+  if (tipoInicial) {
+    form.elements.tipo.value = tipoInicial;
+  }
+
+  form.addEventListener(
+    'submit',
+    async evento => {
+      evento.preventDefault();
+
+      const mensagem =
+        modal.querySelector(
+          '#ravexProdutoMensagem'
+        );
+
+      const dados =
+        Object.fromEntries(
+          new FormData(form).entries()
+        );
+
+      dados.preco =
+        Number(dados.preco || 0);
+
+      dados.gratuito =
+        dados.tipo === 'bot-free';
+
+      try {
+        ravexMensagem(
+          mensagem,
+          'A publicar...'
+        );
+
+        await ravexFetchJSON(
+          '/api/proprietario/marketplace',
+          {
+            method: 'POST',
+            body: JSON.stringify(dados)
+          }
+        );
+
+        ravexMensagem(
+          mensagem,
+          'Publicado com sucesso.'
+        );
+
+        setTimeout(async () => {
+          modal.remove();
+
+          if (tipoInicial === 'api') {
+            await ravexRenderizarAPIs();
+          } else {
+            await ravexRenderizarLoja();
+          }
+        }, 500);
+      } catch (erro) {
+        ravexMensagem(
+          mensagem,
+          erro.message,
+          true
+        );
+      }
+    }
+  );
+}
+
+function ravexAbrirFormularioAluguel(
+  produtoId
+) {
+  const modal = ravexModal(`
+    <h2>Alugar bot</h2>
+
+    <form id="ravexFormAluguel">
+      <label>
+        Grupo WhatsApp
+        <input
+          name="grupoWhatsApp"
+          maxlength="300"
+          placeholder="Nome ou referência do grupo"
+        >
+      </label>
+
+      <label>
+        Observação
+        <textarea
+          name="observacao"
+          maxlength="1000"
+          placeholder="Informações sobre o pedido"
+        ></textarea>
+      </label>
+
+      <p
+        id="ravexAluguelMensagem"
+        class="ravex-form-mensagem"
+      ></p>
+
+      <button
+        type="submit"
+        class="ravex-btn-principal"
+      >
+        Enviar pedido
+      </button>
+    </form>
+  `);
+
+  const form =
+    modal.querySelector(
+      '#ravexFormAluguel'
+    );
+
+  form.addEventListener(
+    'submit',
+    async evento => {
+      evento.preventDefault();
+
+      const mensagem =
+        modal.querySelector(
+          '#ravexAluguelMensagem'
+        );
+
+      const dados =
+        Object.fromEntries(
+          new FormData(form).entries()
+        );
+
+      try {
+        ravexMensagem(
+          mensagem,
+          'A enviar pedido...'
+        );
+
+        const resposta =
+          await ravexFetchJSON(
+            '/api/alugueis',
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                produtoId,
+                ...dados
+              })
+            }
+          );
+
+        ravexMensagem(
+          mensagem,
+          resposta.mensagem ||
+          'Pedido enviado com sucesso.'
+        );
+      } catch (erro) {
+        ravexMensagem(
+          mensagem,
+          erro.message,
+          true
+        );
+      }
+    }
+  );
+}
+
+/* RAVEX MARKETPLACE — PARTE 4A: MEU BOT */
+
+function ravexAbrirAdicionarMeuBot() {
+  const modal = ravexModal(`
+    <h2>Adicionar meu bot para aluguel</h2>
+
+    <p>
+      Para publicar um bot, precisas primeiro
+      de um código de confirmação RAVEX.
+    </p>
+
+    <form id="ravexFormMeuBot">
+      <label>
+        Código de confirmação
+        <input
+          name="codigo"
+          autocomplete="off"
+          required
+          placeholder="RAVEX-ALUGUEL-..."
+        >
+      </label>
+
+      <label>
+        Nome do bot
+        <input
+          name="nome"
+          maxlength="100"
+          required
+        >
+      </label>
+
+      <label>
+        Descrição
+        <textarea
+          name="descricao"
+          maxlength="2000"
+          required
+        ></textarea>
+      </label>
+
+      <label>
+        Preço do aluguel
+        <input
+          name="preco"
+          type="number"
+          min="0"
+          step="1"
+          required
+        >
+      </label>
+
+      <label>
+        Moeda
+        <input
+          name="moeda"
+          value="AOA"
+          maxlength="10"
+        >
+      </label>
+
+      <label>
+        Período
+        <input
+          name="periodoAluguel"
+          maxlength="100"
+          placeholder="Ex.: 30 dias"
+        >
+      </label>
+
+      <label>
+        URL pública ou repositório
+        <input
+          name="url"
+          type="url"
+          maxlength="1000"
+        >
+      </label>
+
+      <p
+        id="ravexMeuBotMensagem"
+        class="ravex-form-mensagem"
+      ></p>
+
+      <button
+        type="submit"
+        class="ravex-btn-principal"
+      >
+        Confirmar e enviar
+      </button>
+    </form>
+  `);
+
+  const form =
+    modal.querySelector('#ravexFormMeuBot');
+
+  form.addEventListener(
+    'submit',
+    async evento => {
+      evento.preventDefault();
+
+      const mensagem =
+        modal.querySelector(
+          '#ravexMeuBotMensagem'
+        );
+
+      const dados =
+        Object.fromEntries(
+          new FormData(form).entries()
+        );
+
+      try {
+        ravexMensagem(
+          mensagem,
+          'A confirmar código...'
+        );
+
+        const confirmacao =
+          await ravexFetchJSON(
+            '/api/codigos-aluguel/confirmar',
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                codigo: dados.codigo
+              })
+            }
+          );
+
+        if (!confirmacao.confirmacaoId) {
+          throw new Error(
+            'Confirmação do código inválida.'
+          );
+        }
+
+        ravexMensagem(
+          mensagem,
+          'Código aceite. A enviar bot...'
+        );
+
+        const resposta =
+          await ravexFetchJSON(
+            '/api/marketplace/submissoes',
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                confirmacaoId:
+                  confirmacao.confirmacaoId,
+
+                nome: dados.nome,
+
+                descricao:
+                  dados.descricao,
+
+                preco:
+                  Number(dados.preco || 0),
+
+                moeda:
+                  dados.moeda || 'AOA',
+
+                periodoAluguel:
+                  dados.periodoAluguel,
+
+                url:
+                  dados.url
+              })
+            }
+          );
+
+        ravexMensagem(
+          mensagem,
+          resposta.mensagem ||
+          'Bot enviado para aprovação.'
+        );
+
+        form
+          .querySelectorAll(
+            'input, textarea, select, button'
+          )
+          .forEach(elemento => {
+            elemento.disabled = true;
+          });
+
+      } catch (erro) {
+        ravexMensagem(
+          mensagem,
+          erro.message,
+          true
+        );
+      }
+    }
+  );
+}
+
+/* RAVEX MARKETPLACE — PARTE 4B: ALUGUEIS E CÓDIGOS */
+
+async function ravexAbrirMeusAlugueis() {
+  try {
+    const dados =
+      await ravexFetchJSON(
+        '/api/meus-alugueis'
+      );
+
+    const alugueis =
+      Array.isArray(dados.alugueis)
+        ? dados.alugueis
+        : [];
+
+    ravexModal(`
+      <h2>Meus alugueis</h2>
+
+      ${
+        alugueis.length
+          ? alugueis.map(item => `
+              <div class="ravex-lista-item">
+                <strong>
+                  Pedido
+                  ${ravexEscaparHtml(item.id)}
+                </strong>
+
+                <span>
+                  Estado:
+                  ${ravexEscaparHtml(
+                    item.status || 'pendente'
+                  )}
+                </span>
+
+                ${
+                  item.grupoWhatsApp
+                    ? `
+                      <span>
+                        Grupo:
+                        ${ravexEscaparHtml(
+                          item.grupoWhatsApp
+                        )}
+                      </span>
+                    `
+                    : ''
+                }
+              </div>
+            `).join('')
+          : `
+            <div class="ravex-market-vazio">
+              Ainda não tens pedidos de aluguel.
+            </div>
+          `
+      }
+    `);
+
+  } catch (erro) {
+    ravexModal(`
+      <h2>Meus alugueis</h2>
+
+      <p class="ravex-mensagem-erro">
+        ${ravexEscaparHtml(erro.message)}
+      </p>
+    `);
+  }
+}
+
+async function ravexGerarCodigo() {
+  const valor = window.prompt(
+    'Validade do código em minutos:',
+    '60'
+  );
+
+  if (valor === null) {
+    return;
+  }
+
+  const validadeMinutos =
+    Number(valor);
+
+  if (
+    !Number.isInteger(validadeMinutos) ||
+    validadeMinutos < 5 ||
+    validadeMinutos > 10080
+  ) {
+    ravexModal(`
+      <h2>Validade inválida</h2>
+
+      <p>
+        Usa um valor entre
+        5 e 10080 minutos.
+      </p>
+    `);
+
+    return;
+  }
+
+  try {
+    const dados =
+      await ravexFetchJSON(
+        '/api/proprietario/codigos-aluguel',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            validadeMinutos
+          })
+        }
+      );
+
+    if (!dados.codigo) {
+      throw new Error(
+        'O servidor não devolveu o código.'
+      );
+    }
+
+    let expiracao = '';
+
+    if (dados.expiraEm) {
+      try {
+        expiracao =
+          new Date(
+            dados.expiraEm
+          ).toLocaleString('pt-PT');
+      } catch {
+        expiracao =
+          String(dados.expiraEm);
+      }
+    }
+
+    ravexModal(`
+      <h2>Código de confirmação</h2>
+
+      <p>
+        Este código só deve ser entregue
+        ao utilizador autorizado.
+      </p>
+
+      <div class="ravex-codigo-gerado">
+        ${ravexEscaparHtml(dados.codigo)}
+      </div>
+
+      ${
+        expiracao
+          ? `
+            <p>
+              Expira em:
+              ${ravexEscaparHtml(expiracao)}
+            </p>
+          `
+          : ''
+      }
+
+      <p>
+        Depois de utilizado,
+        o código não poderá ser reutilizado.
+      </p>
+    `);
+
+  } catch (erro) {
+    ravexModal(`
+      <h2>Erro ao gerar código</h2>
+
+      <p class="ravex-mensagem-erro">
+        ${ravexEscaparHtml(erro.message)}
+      </p>
+    `);
+  }
+}
+
+/* RAVEX MARKETPLACE — PARTE 4C: APROVAÇÃO */
+
+async function ravexAbrirSubmissoesAdmin() {
+  try {
+    const dados = await ravexFetchJSON(
+      '/api/proprietario/marketplace/submissoes?status=pendente'
+    );
+
+    const submissoes =
+      Array.isArray(dados.submissoes)
+        ? dados.submissoes
+        : [];
+
+    const modal = ravexModal(`
+      <h2>Bots para aprovação</h2>
+
+      <div id="ravexSubmissoesLista">
+        ${
+          submissoes.length
+            ? submissoes.map(item => `
+                <div
+                  class="ravex-lista-item"
+                  data-submissao="${ravexEscaparHtml(item.id)}"
+                >
+                  <strong>
+                    ${ravexEscaparHtml(item.nome)}
+                  </strong>
+
+                  <p>
+                    ${ravexEscaparHtml(item.descricao)}
+                  </p>
+
+                  <span>
+                    Preço:
+                    ${ravexEscaparHtml(
+                      ravexMoeda(
+                        item.preco,
+                        item.moeda || 'AOA'
+                      )
+                    )}
+                  </span>
+
+                  ${
+                    item.periodoAluguel
+                      ? `
+                        <span>
+                          Período:
+                          ${ravexEscaparHtml(
+                            item.periodoAluguel
+                          )}
+                        </span>
+                      `
+                      : ''
+                  }
+
+                  <div class="ravex-market-acoes">
+                    <button
+                      type="button"
+                      class="ravex-btn-principal"
+                      data-ravex-aprovar="${ravexEscaparHtml(item.id)}"
+                    >
+                      Aprovar
+                    </button>
+
+                    <button
+                      type="button"
+                      class="ravex-btn-secundario"
+                      data-ravex-rejeitar="${ravexEscaparHtml(item.id)}"
+                    >
+                      Rejeitar
+                    </button>
+                  </div>
+                </div>
+              `).join('')
+            : `
+              <div class="ravex-market-vazio">
+                Não existem bots pendentes.
+              </div>
+            `
+        }
+      </div>
+    `);
+
+    modal
+      .querySelectorAll('[data-ravex-aprovar]')
+      .forEach(botao => {
+        botao.addEventListener(
+          'click',
+          async () => {
+            botao.disabled = true;
+
+            try {
+              await ravexDecidirSubmissao(
+                botao.dataset.ravexAprovar,
+                'aprovado',
+                ''
+              );
+
+              modal.remove();
+
+              await ravexAbrirSubmissoesAdmin();
+            } catch {
+              botao.disabled = false;
+            }
+          }
+        );
+      });
+
+    modal
+      .querySelectorAll('[data-ravex-rejeitar]')
+      .forEach(botao => {
+        botao.addEventListener(
+          'click',
+          async () => {
+            const motivo = window.prompt(
+              'Motivo da rejeição:',
+              ''
+            );
+
+            if (motivo === null) {
+              return;
+            }
+
+            botao.disabled = true;
+
+            try {
+              await ravexDecidirSubmissao(
+                botao.dataset.ravexRejeitar,
+                'rejeitado',
+                motivo
+              );
+
+              modal.remove();
+
+              await ravexAbrirSubmissoesAdmin();
+            } catch {
+              botao.disabled = false;
+            }
+          }
+        );
+      });
+
+  } catch (erro) {
+    ravexModal(`
+      <h2>Bots para aprovação</h2>
+
+      <p class="ravex-mensagem-erro">
+        ${ravexEscaparHtml(erro.message)}
+      </p>
+    `);
+  }
+}
+
+async function ravexDecidirSubmissao(
+  id,
+  status,
+  motivo = ''
+) {
+  try {
+    return await ravexFetchJSON(
+      '/api/proprietario/marketplace/submissoes/' +
+      encodeURIComponent(id),
+      {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status,
+          motivo
+        })
+      }
+    );
+
+  } catch (erro) {
+    ravexModal(`
+      <h2>Não foi possível concluir</h2>
+
+      <p class="ravex-mensagem-erro">
+        ${ravexEscaparHtml(erro.message)}
+      </p>
+    `);
+
+    throw erro;
+  }
+}
+
+/* =========================================================
+   RAVEX MARKETPLACE — PARTE 5A: NAVEGAÇÃO FINAL
+   ========================================================= */
+
+const ravexMostrarPaginaOriginal =
+  window.mostrarPaginaPainel;
+
+if (
+  typeof ravexMostrarPaginaOriginal ===
+  'function'
+) {
+  window.mostrarPaginaPainel =
+    function ravexMostrarPaginaComMarketplace(
+      pagina
+    ) {
+      const resultado =
+        ravexMostrarPaginaOriginal(pagina);
+
+      if (pagina === 'apis') {
+        ravexRenderizarAPIs();
+      }
+
+      if (pagina === 'loja') {
+        ravexRenderizarLoja();
+      }
+
+      return resultado;
+    };
+}
+
+/*
+ * Garante também a integração quando navegarPainel()
+ * for a função utilizada pelos botões do menu.
+ */
+const ravexNavegarPainelOriginal =
+  window.navegarPainel;
+
+if (
+  typeof ravexNavegarPainelOriginal ===
+  'function'
+) {
+  window.navegarPainel =
+    function ravexNavegarComMarketplace(
+      pagina
+    ) {
+      const resultado =
+        ravexNavegarPainelOriginal(pagina);
+
+      if (pagina === 'apis') {
+        ravexRenderizarAPIs();
+      }
+
+      if (pagina === 'loja') {
+        ravexRenderizarLoja();
+      }
+
+      return resultado;
+    };
+}

@@ -26,6 +26,23 @@ const mensagemCadastro =
 const botaoCriarConta =
   document.getElementById('criarConta');
 
+const confirmacaoEmailCadastro =
+  document.getElementById(
+    'confirmacaoEmailCadastro'
+  );
+
+const codigoEmailCadastro =
+  document.getElementById(
+    'codigoEmailCadastro'
+  );
+
+const botaoConfirmarEmailCadastro =
+  document.getElementById(
+    'confirmarEmailCadastro'
+  );
+
+let verificacaoCadastroId = null;
+
 function mostrarPainel(nome) {
   for (const [chave, painel] of Object.entries(paineis)) {
     const ativo = chave === nome;
@@ -158,10 +175,10 @@ formularioCadastro.addEventListener(
 
     botaoCriarConta.disabled = true;
     botaoCriarConta.textContent =
-      '⏳ Criando conta...';
+      '⏳ Enviando código...';
 
     try {
-      const resposta = await fetch('/api/cadastro', {
+      const resposta = await fetch('/api/cadastro/solicitar-confirmacao', {
         method: 'POST',
 
         headers: {
@@ -187,19 +204,25 @@ formularioCadastro.addEventListener(
         );
       }
 
+      verificacaoCadastroId =
+        resultado.verificacaoId;
+
+      if (!verificacaoCadastroId) {
+        throw new Error(
+          'Identificação da confirmação não recebida.'
+        );
+      }
+
+      confirmacaoEmailCadastro.hidden = false;
+
       mensagemCadastro.textContent =
-        '✅ Conta criada e licença ativada.';
+        '✅ Código enviado. Verifica o teu e-mail.';
 
       mensagemCadastro.classList.add('sucesso');
 
-      formularioLogin.email.value = email;
+      codigoEmailCadastro.value = '';
 
-      setTimeout(() => {
-        mostrarPainel('login');
-        document
-          .getElementById('senhaLogin')
-          .focus();
-      }, 900);
+      codigoEmailCadastro.focus();
     } catch (erro) {
       mensagemCadastro.textContent =
         `❌ ${erro.message}`;
@@ -208,10 +231,126 @@ formularioCadastro.addEventListener(
     } finally {
       botaoCriarConta.disabled = false;
       botaoCriarConta.textContent =
-        '⚡ Criar conta e ativar';
+        '📧 Enviar código de confirmação';
     }
   }
 );
+
+
+if (botaoConfirmarEmailCadastro) {
+  botaoConfirmarEmailCadastro.addEventListener(
+    'click',
+    async () => {
+      mensagemCadastro.textContent = '';
+      mensagemCadastro.className =
+        'mensagem-formulario';
+
+      const codigoEmail = String(
+        codigoEmailCadastro?.value || ''
+      ).trim();
+
+      if (!verificacaoCadastroId) {
+        mensagemCadastro.textContent =
+          '❌ Solicita primeiro um novo código.';
+
+        mensagemCadastro.classList.add('erro');
+        return;
+      }
+
+      if (!/^\d{6}$/.test(codigoEmail)) {
+        mensagemCadastro.textContent =
+          '❌ Introduz os 6 dígitos recebidos por e-mail.';
+
+        mensagemCadastro.classList.add('erro');
+
+        codigoEmailCadastro?.focus();
+        return;
+      }
+
+      botaoConfirmarEmailCadastro.disabled = true;
+      botaoConfirmarEmailCadastro.textContent =
+        '⏳ Confirmando...';
+
+      try {
+        const resposta = await fetch(
+          '/api/cadastro/confirmar-email',
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type': 'application/json'
+            },
+
+            body: JSON.stringify({
+              verificacaoId:
+                verificacaoCadastroId,
+
+              codigoEmail
+            })
+          }
+        );
+
+        const resultado =
+          await resposta.json();
+
+        if (!resposta.ok) {
+          throw new Error(
+            resultado.mensagem ||
+            'Não foi possível confirmar o e-mail.'
+          );
+        }
+
+        const emailCriado = document
+          .getElementById('emailCadastro')
+          ?.value
+          ?.trim();
+
+        mensagemCadastro.textContent =
+          '✅ E-mail confirmado. Conta criada e licença ativada.';
+
+        mensagemCadastro.classList.add(
+          'sucesso'
+        );
+
+        verificacaoCadastroId = null;
+
+        confirmacaoEmailCadastro.hidden = true;
+
+        if (
+          formularioLogin &&
+          formularioLogin.email &&
+          emailCriado
+        ) {
+          formularioLogin.email.value =
+            emailCriado;
+        }
+
+        formularioCadastro?.reset();
+
+        setTimeout(() => {
+          mostrarPainel('login');
+
+          document
+            .getElementById('senhaLogin')
+            ?.focus();
+        }, 1000);
+      } catch (erro) {
+        mensagemCadastro.textContent =
+          `❌ ${erro.message}`;
+
+        mensagemCadastro.classList.add(
+          'erro'
+        );
+      } finally {
+        botaoConfirmarEmailCadastro.disabled =
+          false;
+
+        botaoConfirmarEmailCadastro.textContent =
+          '✅ Confirmar e criar conta';
+      }
+    }
+  );
+}
 
 const formularioProprietario =
   document.getElementById('formProprietario');

@@ -225,6 +225,41 @@
             ⚡ Criar conta e ativar
           </button>
 
+          <div
+            id="confirmacaoEmailCadastro"
+            hidden
+          >
+            <hr>
+
+            <h3>Confirmar e-mail</h3>
+
+            <p class="texto-secundario">
+              Enviámos um código de 6 dígitos
+              para o teu e-mail.
+            </p>
+
+            <label for="codigoEmailCadastro">
+              Código recebido por e-mail
+            </label>
+
+            <input
+              id="codigoEmailCadastro"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              pattern="[0-9]{6}"
+              placeholder="000000"
+            >
+
+            <button
+              id="confirmarEmailCadastro"
+              type="button"
+            >
+              ✅ Confirmar e criar conta
+            </button>
+          </div>
+
           <p
             id="mensagemCadastro"
             class="mensagem-formulario"
