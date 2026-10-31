@@ -2372,31 +2372,6 @@ document.addEventListener('keydown', evento => {
   }
 });
 
-/*
- * Os itens do menu reutilizam a navegação
- * principal já existente.
- */
-document
-  .querySelectorAll('[data-menu-pagina]')
-  .forEach(itemMenu => {
-    itemMenu.addEventListener('click', () => {
-      const pagina =
-        itemMenu.dataset.menuPagina;
-
-      const botaoOriginal =
-        document.querySelector(
-          `.nav-ravex[data-pagina="${pagina}"]`
-        );
-
-      if (botaoOriginal) {
-        botaoOriginal.click();
-      }
-
-      fecharMenuRavex({
-        devolverFoco: false
-      });
-    });
-  });
 
 const botaoSair =
   document.getElementById('sairPainel');
@@ -2981,17 +2956,19 @@ Object.entries(ravexDestinosIds).forEach(
     botao.dataset.menuPagina = destino;
 
     /*
-     * Estes elementos não estavam presentes na seleção
-     * inicial de [data-menu-pagina], por isso precisam
-     * de um listener próprio.
+     * Evita registar o mesmo evento duas vezes.
      */
-    botao.addEventListener('click', () => {
-      navegarPainel(destino);
+    if (botao.dataset.ravexLigado !== '1') {
+      botao.dataset.ravexLigado = '1';
 
-      fecharMenuRavex({
-        devolverFoco: false
+      botao.addEventListener('click', () => {
+        navegarPainel(destino);
+
+        fecharMenuRavex({
+          devolverFoco: false
+        });
       });
-    });
+    }
   }
 );
 
