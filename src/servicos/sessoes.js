@@ -24,7 +24,8 @@ function criarSessao({
     tipo: String(tipo || 'usuario'),
 
     criadaEm,
-    expiraEm
+    expiraEm,
+    ultimaAtividade: criadaEm
   };
 
   sessoes.set(token, sessao);
@@ -56,6 +57,65 @@ function obterSessao(token) {
   };
 }
 
+function registrarAtividade(token) {
+  if (!token) {
+    return null;
+  }
+
+  const sessao = sessoes.get(token);
+
+  if (!sessao) {
+    return null;
+  }
+
+  if (sessao.expiraEm <= Date.now()) {
+    sessoes.delete(token);
+    return null;
+  }
+
+  sessao.ultimaAtividade = Date.now();
+
+  return {
+    ...sessao
+  };
+}
+
+function listarPresencas({
+  limiteInatividadeMs = 2 * 60 * 1000
+} = {}) {
+  const agora = Date.now();
+  const presencas = [];
+
+  for (const sessao of sessoes.values()) {
+    if (sessao.expiraEm <= agora) {
+      continue;
+    }
+
+    const ultimaAtividade =
+      Number(
+        sessao.ultimaAtividade ||
+        sessao.criadaEm
+      );
+
+    if (
+      agora - ultimaAtividade >
+      limiteInatividadeMs
+    ) {
+      continue;
+    }
+
+    presencas.push({
+      contaId: sessao.contaId,
+      tipo: sessao.tipo,
+      criadaEm: sessao.criadaEm,
+      expiraEm: sessao.expiraEm,
+      ultimaAtividade
+    });
+  }
+
+  return presencas;
+}
+
 function destruirSessao(token) {
   if (!token) {
     return false;
@@ -85,5 +145,7 @@ module.exports = {
   DURACAO_SESSAO_MS,
   criarSessao,
   obterSessao,
+  registrarAtividade,
+  listarPresencas,
   destruirSessao
 };

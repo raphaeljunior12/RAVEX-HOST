@@ -272,6 +272,7 @@ function usarCodigoLicenca({
 }
 
 module.exports = {
+  listarCodigos,
   gerarCodigoLicenca,
   validarCodigoLicenca,
   usarCodigoLicenca

@@ -2301,3 +2301,620 @@ body.menu-ravex-aberto {
     transition: none;
   }
 }
+
+/* =========================================
+   RAVEX-HOST — MENU PROFISSIONAL
+   ========================================= */
+
+.menu-lateral-ravex {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 1001;
+
+  width: min(88vw, 370px);
+  height: 100dvh;
+
+  display: flex;
+  flex-direction: column;
+
+  background:
+    linear-gradient(
+      180deg,
+      #10131a 0%,
+      #0b0e14 100%
+    );
+
+  border-left: 1px solid
+    rgba(255, 255, 255, 0.08);
+
+  box-shadow:
+    -20px 0 60px
+    rgba(0, 0, 0, 0.45);
+
+  transform: translateX(105%);
+  transition:
+    transform 0.24s ease,
+    visibility 0.24s ease;
+
+  overflow: hidden;
+}
+
+.menu-lateral-ravex.aberto {
+  transform: translateX(0);
+}
+
+.overlay-menu-ravex {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  background:
+    rgba(0, 0, 0, 0.64);
+
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.menu-lateral-cabecalho {
+  min-height: 76px;
+  padding: 14px 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  flex-shrink: 0;
+
+  background:
+    rgba(15, 18, 25, 0.98);
+
+  border-bottom: 1px solid
+    rgba(255, 255, 255, 0.07);
+}
+
+.menu-marca-ravex {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-logo-ravex {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.04)
+    );
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.10);
+
+  font-size: 21px;
+}
+
+.menu-marca-ravex strong {
+  display: block;
+
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.menu-marca-ravex span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.menu-fechar-ravex {
+  width: 40px;
+  height: 40px;
+
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
+
+  border-radius: 11px;
+
+  background:
+    rgba(255, 255, 255, 0.04);
+
+  color: rgba(255, 255, 255, 0.72);
+
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.menu-fechar-ravex:active {
+  transform: scale(0.95);
+}
+
+.menu-lateral-conteudo {
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  padding:
+    8px 10px
+    18px;
+}
+
+.menu-lateral-conteudo::-webkit-scrollbar {
+  width: 4px;
+}
+
+.menu-lateral-conteudo::-webkit-scrollbar-thumb {
+  background:
+    rgba(255, 255, 255, 0.14);
+
+  border-radius: 999px;
+}
+
+.menu-lateral-grupo {
+  padding: 13px 0;
+}
+
+.menu-lateral-grupo +
+.menu-lateral-grupo {
+  border-top: 1px solid
+    rgba(255, 255, 255, 0.055);
+}
+
+.menu-lateral-titulo {
+  margin:
+    0 10px
+    8px;
+
+  color:
+    rgba(255, 255, 255, 0.36);
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+
+.menu-item-ravex {
+  position: relative;
+
+  width: 100%;
+  min-height: 48px;
+
+  margin: 2px 0;
+  padding: 8px 11px;
+
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  background: transparent;
+
+  color:
+    rgba(255, 255, 255, 0.72);
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+
+  text-align: left;
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.menu-item-ravex:hover {
+  background:
+    rgba(255, 255, 255, 0.055);
+
+  color: #ffffff;
+}
+
+.menu-item-ravex:active {
+  transform: scale(0.985);
+}
+
+.menu-item-ravex.ativo {
+  background:
+    rgba(255, 255, 255, 0.08);
+
+  border-color:
+    rgba(255, 255, 255, 0.07);
+
+  color: #ffffff;
+}
+
+.menu-item-ravex.ativo::before {
+  content: "";
+
+  position: absolute;
+  left: -1px;
+  top: 10px;
+  bottom: 10px;
+
+  width: 3px;
+
+  border-radius:
+    0 5px 5px 0;
+
+  background: currentColor;
+}
+
+.menu-item-icone {
+  width: 25px;
+
+  display: inline-grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  font-size: 16px;
+  line-height: 1;
+}
+
+.menu-item-texto {
+  flex: 1;
+  min-width: 0;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.menu-item-seta {
+  margin-left: auto;
+
+  color:
+    rgba(255, 255, 255, 0.28);
+
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.menu-badge-ravex {
+  min-width: 25px;
+  height: 22px;
+
+  padding: 0 7px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 999px;
+
+  background:
+    rgba(255, 255, 255, 0.09);
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.07);
+
+  color: #ffffff;
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.menu-badge-ravex[hidden] {
+  display: none !important;
+}
+
+.menu-status-ravex {
+  margin-left: auto;
+  padding: 4px 7px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(74, 222, 128, 0.10);
+
+  border: 1px solid
+    rgba(74, 222, 128, 0.18);
+
+  color: #86efac;
+
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+}
+
+#menuAdministracao[hidden] {
+  display: none !important;
+}
+
+#menuAdministracao:not([hidden]) {
+  display: block;
+}
+
+#menuAdministracao
+.menu-lateral-titulo {
+  color:
+    rgba(255, 255, 255, 0.58);
+}
+
+.menu-lateral-rodape {
+  flex-shrink: 0;
+
+  padding:
+    10px
+    10px
+    calc(
+      10px +
+      env(safe-area-inset-bottom)
+    );
+
+  background:
+    rgba(10, 12, 17, 0.98);
+
+  border-top: 1px solid
+    rgba(255, 255, 255, 0.07);
+}
+
+.menu-item-perigo {
+  color: #fca5a5;
+}
+
+.menu-item-perigo:hover {
+  background:
+    rgba(239, 68, 68, 0.09);
+
+  border-color:
+    rgba(239, 68, 68, 0.12);
+
+  color: #fecaca;
+}
+
+@media (max-width: 520px) {
+  .menu-lateral-ravex {
+    width: min(91vw, 355px);
+  }
+
+  .menu-lateral-cabecalho {
+    min-height: 72px;
+    padding: 12px 13px;
+  }
+
+  .menu-item-ravex {
+    min-height: 47px;
+  }
+}
+
+@media (min-width: 900px) {
+  .menu-lateral-ravex {
+    width: 390px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-lateral-ravex,
+  .menu-item-ravex,
+  .menu-fechar-ravex {
+    transition: none !important;
+  }
+}
+
+/* =========================================
+   RAVEX-HOST — USUÁRIOS ONLINE
+   ========================================= */
+
+.resumo-admin-online {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 12px;
+
+  margin: 18px 0;
+}
+
+.cartao-admin-online {
+  min-width: 0;
+  padding: 16px;
+
+  border:
+    1px solid rgba(255, 255, 255, 0.08);
+
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.025)
+    );
+}
+
+.cartao-admin-online span {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color:
+    rgba(255, 255, 255, 0.52);
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cartao-admin-online strong {
+  display: block;
+
+  color: #ffffff;
+
+  font-size: 24px;
+  font-weight: 850;
+}
+
+.lista-usuarios-online {
+  display: grid;
+  gap: 11px;
+
+  margin-top: 14px;
+}
+
+.usuario-online-card {
+  padding: 15px;
+
+  border:
+    1px solid rgba(255, 255, 255, 0.075);
+
+  border-radius: 14px;
+
+  background:
+    rgba(255, 255, 255, 0.025);
+}
+
+.usuario-online-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin-bottom: 14px;
+}
+
+.usuario-online-topo strong {
+  display: block;
+
+  color: #ffffff;
+
+  font-size: 14px;
+}
+
+.usuario-online-topo div > span {
+  display: block;
+
+  margin-top: 4px;
+
+  color:
+    rgba(255, 255, 255, 0.42);
+
+  font-size: 11px;
+}
+
+.usuario-online-status {
+  flex-shrink: 0;
+
+  padding: 5px 8px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(74, 222, 128, 0.09);
+
+  border:
+    1px solid rgba(74, 222, 128, 0.16);
+
+  color: #86efac;
+
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.usuario-online-dados {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 8px;
+
+  margin-bottom: 12px;
+}
+
+.usuario-online-dados > span {
+  min-width: 0;
+  padding: 9px;
+
+  border-radius: 9px;
+
+  background:
+    rgba(255, 255, 255, 0.035);
+
+  color:
+    rgba(255, 255, 255, 0.43);
+
+  font-size: 9px;
+}
+
+.usuario-online-dados strong {
+  display: block;
+
+  margin-top: 4px;
+
+  overflow: hidden;
+
+  color:
+    rgba(255, 255, 255, 0.88);
+
+  font-size: 11px;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.usuario-online-card small {
+  color:
+    rgba(255, 255, 255, 0.38);
+
+  font-size: 10px;
+}
+
+@media (max-width: 620px) {
+  .resumo-admin-online {
+    grid-template-columns: 1fr;
+  }
+
+  .usuario-online-dados {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 380px) {
+  .usuario-online-dados {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* RAVEX-HOST - ferramentas do menu */
+
+.menu-ferramentas-ravex {
+  margin-top: 8px;
+}
+
+.menu-item-ravex[hidden],
+.ravex-somente-owner[hidden] {
+  display: none !important;
+}

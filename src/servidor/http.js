@@ -33,6 +33,8 @@ const {
 const {
   criarSessao,
   obterSessao,
+  registrarAtividade,
+  listarPresencas,
   destruirSessao,
   DURACAO_SESSAO_MS
 } = require('../servicos/sessoes');
@@ -71,6 +73,23 @@ const {
 const {
   atualizarBotGit
 } = require('../servicos/atualizadorBots');
+
+const {
+  listarTickets,
+  listarTicketsConta,
+  criarTicket,
+  atualizarStatusTicket,
+  contarTicketsAbertos
+} = require('../servicos/tickets');
+
+const {
+  listarClientesAdmin,
+  listarBotsAdmin,
+  listarLicencasAdmin,
+  listarCodigosAdmin,
+  obterResumoAdmin,
+  pesquisarAdmin
+} = require('../servicos/administracao');
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT) || 3000;
@@ -153,7 +172,15 @@ function obterSessaoAtual(req) {
     return null;
   }
 
-  return obterSessao(token);
+  const sessao = obterSessao(token);
+
+  if (!sessao) {
+    return null;
+  }
+
+  registrarAtividade(token);
+
+  return sessao;
 }
 
 function estaAutenticado(req) {
@@ -787,6 +814,486 @@ function iniciarServidor() {
         path.join(RAIZ_PUBLICA, 'js', 'painel.js'),
         'application/javascript; charset=utf-8'
       );
+    }
+
+    if (
+      rota === '/api/proprietario/usuarios-online' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const presencas = listarPresencas();
+      const bots = listarStatusBots();
+
+      const contasOnline = new Map();
+      let proprietarioOnline = false;
+
+      for (const presenca of presencas) {
+        if (presenca.tipo === 'proprietario') {
+          proprietarioOnline = true;
+          continue;
+        }
+
+        if (!presenca.contaId) {
+          continue;
+        }
+
+        const id = String(presenca.contaId);
+        const existente = contasOnline.get(id);
+
+        if (
+          !existente ||
+          presenca.ultimaAtividade >
+            existente.ultimaAtividade
+        ) {
+          contasOnline.set(id, presenca);
+        }
+      }
+
+      const usuarios = [];
+
+      for (const [contaId, presenca] of contasOnline) {
+        const conta = obterContaPorId(contaId);
+
+        if (!conta) {
+          continue;
+        }
+
+        const licenca = obterStatusLicenca(contaId);
+
+        const botsOnline = bots.filter((bot) => {
+          return (
+            bot.online === true &&
+            bot.contaId !== null &&
+            bot.contaId !== undefined &&
+            String(bot.contaId) === contaId
+          );
+        }).length;
+
+        usuarios.push({
+          contaId,
+          nome: conta.nome,
+          username: conta.username,
+          tipo: conta.tipo || 'usuario',
+          estado: conta.estado,
+          licenca: {
+            ativa: Boolean(licenca.ativa),
+            status: licenca.status,
+            plano: licenca.plano || null,
+            expiraEm: licenca.expiraEm || null
+          },
+          botsOnline,
+          sessaoCriadaEm: presenca.criadaEm,
+          ultimaAtividade: presenca.ultimaAtividade
+        });
+      }
+
+      usuarios.sort(
+        (a, b) =>
+          b.ultimaAtividade - a.ultimaAtividade
+      );
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        atualizadoEm: Date.now(),
+        limiteInatividadeMs: 2 * 60 * 1000,
+        totalUsuariosOnline: usuarios.length,
+        proprietarioOnline,
+        usuarios
+      });
+    }
+
+
+    // =====================================================
+    // RAVEX-HOST - ADMINISTRACAO COMPLETA
+    // =====================================================
+
+    if (rota === '/api/presenca' && req.method === 'GET') {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        agora: Date.now()
+      });
+    }
+
+    if (
+      rota === '/api/proprietario/resumo' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        atualizadoEm: Date.now(),
+        resumo: obterResumoAdmin()
+      });
+    }
+
+    if (
+      rota === '/api/proprietario/clientes' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const clientes =
+        listarClientesAdmin();
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: clientes.length,
+        clientes
+      });
+    }
+
+    if (
+      rota === '/api/proprietario/bots' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const bots =
+        listarBotsAdmin();
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: bots.length,
+        bots
+      });
+    }
+
+    if (
+      rota === '/api/proprietario/licencas' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const licencas =
+        listarLicencasAdmin();
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: licencas.length,
+        licencas
+      });
+    }
+
+    if (
+      rota === '/api/proprietario/codigos' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const codigos =
+        listarCodigosAdmin();
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: codigos.length,
+        codigos
+      });
+    }
+
+    if (
+      rota === '/api/proprietario/pesquisar' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const termo =
+        String(
+          url.searchParams.get('q') || ''
+        ).slice(0, 120);
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        ...pesquisarAdmin(termo)
+      });
+    }
+
+    // =====================================================
+    // RAVEX-HOST - SUPORTE / TICKETS
+    // =====================================================
+
+    if (rota === '/api/tickets' && req.method === 'GET') {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo === 'proprietario') {
+        return responderJSON(res, 200, {
+          sucesso: true,
+          tickets: listarTickets()
+        });
+      }
+
+      if (!sessao.contaId) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem: 'Conta inválida.'
+        });
+      }
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        tickets: listarTicketsConta(
+          String(sessao.contaId)
+        )
+      });
+    }
+
+    if (rota === '/api/tickets' && req.method === 'POST') {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (
+        sessao.tipo !== 'proprietario' &&
+        !sessao.contaId
+      ) {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem: 'Conta inválida.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+
+        const contaId =
+          sessao.tipo === 'proprietario'
+            ? 'proprietario'
+            : String(sessao.contaId);
+
+        const ticket = criarTicket({
+          contaId,
+          categoria: corpo.categoria,
+          assunto: corpo.assunto,
+          descricao: corpo.descricao
+        });
+
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem:
+            'Problema relatado com sucesso.',
+          ticket
+        });
+      } catch (erro) {
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            erro.message ||
+            'Não foi possível criar o ticket.'
+        });
+      }
+    }
+
+    if (
+      rota === '/api/proprietario/tickets' &&
+      req.method === 'GET'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      const tickets = listarTickets();
+
+      return responderJSON(res, 200, {
+        sucesso: true,
+        total: tickets.length,
+        abertos: contarTicketsAbertos(),
+        tickets
+      });
+    }
+
+    const rotaStatusTicket = rota.match(
+      /^\/api\/proprietario\/tickets\/([^/]+)$/
+    );
+
+    if (
+      rotaStatusTicket &&
+      req.method === 'PATCH'
+    ) {
+      const sessao = obterSessaoAtual(req);
+
+      if (!sessao) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Autenticação necessária.'
+        });
+      }
+
+      if (sessao.tipo !== 'proprietario') {
+        return responderJSON(res, 403, {
+          sucesso: false,
+          mensagem:
+            'Acesso exclusivo do proprietário.'
+        });
+      }
+
+      try {
+        const idTicket =
+          decodeURIComponent(
+            rotaStatusTicket[1]
+          );
+
+        const corpo = await lerJSON(req);
+
+        const ticket =
+          atualizarStatusTicket(
+            idTicket,
+            String(corpo.status || '')
+          );
+
+        return responderJSON(res, 200, {
+          sucesso: true,
+          mensagem:
+            'Estado do ticket atualizado.',
+          ticket
+        });
+      } catch (erro) {
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem:
+            erro.message ||
+            'Não foi possível atualizar o ticket.'
+        });
+      }
     }
 
     if (rota === '/api/minha-conta' && req.method === 'GET') {

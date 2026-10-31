@@ -71,6 +71,11 @@
   </header>
 
   <main>
+    <div
+      id="paginaInicio"
+      class="pagina-painel ativa"
+      data-pagina-conteudo="inicio"
+    >
     <section
       id="resumoConta"
       class="perfil-resumo"
@@ -136,10 +141,12 @@
         </div>
       </div>
     </section>
+    </div>
 
     <nav
-      class="navegacao-ravex"
+      class="navegacao-ravex navegacao-ravex-interna"
       aria-label="Navegação RAVEX-HOST"
+      hidden
     >
       <button
         class="nav-ravex ativo"
@@ -200,7 +207,8 @@
 
     <section
       id="paginaPerfil"
-      class="pagina-ravex oculto"
+      class="pagina-ravex pagina-painel oculto"
+      data-pagina-conteudo="perfil"
       aria-labelledby="tituloMeuPerfil"
     >
       <div class="perfil-pagina-cabecalho">
@@ -398,7 +406,11 @@
       ></div>
     </section>
 
-    <section>
+    <section
+      id="paginaDashboard"
+      class="pagina-painel oculto"
+      data-pagina-conteudo="dashboard"
+    >
       <div class="titulo-linha">
         <div>
           <h2>📊 Dashboard</h2>
@@ -415,7 +427,11 @@
       </div>
     </section>
 
-    <section>
+    <section
+      id="paginaBots"
+      class="pagina-painel oculto"
+      data-pagina-conteudo="bots"
+    >
       <div class="titulo-linha">
         <div>
           <h2>🤖 Gerenciador de Bots</h2>
@@ -430,7 +446,11 @@
       </div>
     </section>
 
-    <section>
+    <section
+      id="paginaSistema"
+      class="pagina-painel oculto"
+      data-pagina-conteudo="sistema"
+    >
       <h2>📈 Sistema</h2>
       <p id="cpu">⚙️ CPU: --</p>
       <p id="memoria">🧠 Memória: --</p>
@@ -438,7 +458,67 @@
       <p id="uptimeSistema">📱 Sistema: --</p>
     </section>
 
-    <section>
+          <section
+        id="paginaUsuariosOnline"
+        class="pagina-painel oculto"
+        data-pagina-conteudo="usuarios-online"
+      >
+        <div class="titulo-linha">
+          <div>
+            <h2>👥 Usuários Online</h2>
+            <p id="resumoUsuariosOnline">
+              A carregar utilizadores...
+            </p>
+          </div>
+
+          <button
+            id="atualizarUsuariosOnline"
+            class="botao-destaque"
+            type="button"
+          >
+            ↻ Atualizar
+          </button>
+        </div>
+
+        <div
+          id="resumoAdminOnline"
+          class="resumo-admin-online"
+        >
+          <div class="cartao-admin-online">
+            <span>Online agora</span>
+            <strong id="totalUsuariosOnlinePagina">
+              0
+            </strong>
+          </div>
+
+          <div class="cartao-admin-online">
+            <span>Bots online</span>
+            <strong id="totalBotsOnlinePagina">
+              0
+            </strong>
+          </div>
+
+          <div class="cartao-admin-online">
+            <span>Proprietário</span>
+            <strong id="estadoProprietarioOnline">
+              --
+            </strong>
+          </div>
+        </div>
+
+        <div
+          id="listaUsuariosOnline"
+          class="lista-usuarios-online"
+        >
+          <p>A carregar...</p>
+        </div>
+      </section>
+
+<section
+      id="paginaLogs"
+      class="pagina-painel oculto"
+      data-pagina-conteudo="logs"
+    >
       <div class="titulo-linha">
         <div>
           <h2>📋 Logs</h2>
@@ -760,14 +840,17 @@
       aria-hidden="true"
     >
       <div class="menu-lateral-cabecalho">
-        <div>
-          <strong>⚡ RAVEX-HOST</strong>
-          <span>Painel de controle</span>
+        <div class="menu-marca-ravex">
+          <div class="menu-logo-ravex">⚡</div>
+          <div>
+            <strong>RAVEX-HOST</strong>
+            <span>Hosting & Cloud</span>
+          </div>
         </div>
 
         <button
           id="fecharMenuPainel"
-          class="topbar-botao"
+          class="menu-fechar-ravex"
           type="button"
           aria-label="Fechar menu"
         >
@@ -775,75 +858,261 @@
         </button>
       </div>
 
-      <div class="menu-lateral-grupo">
-        <p class="menu-lateral-titulo">
-          NAVEGAÇÃO
-        </p>
+      <div class="menu-lateral-conteudo">
 
-        <button class="menu-item-ravex" type="button"
-          data-menu-pagina="inicio">
-          🏠 <span>Início</span>
-        </button>
+        <div class="menu-lateral-grupo">
+          <p class="menu-lateral-titulo">MENU</p>
 
-        <button class="menu-item-ravex" type="button"
-          data-menu-pagina="perfil">
-          👤 <span>Minha conta</span>
-        </button>
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="inicio"
+          >
+            <span class="menu-item-icone">⌂</span>
+            <span class="menu-item-texto">Início</span>
+          </button>
 
-        <button class="menu-item-ravex" type="button"
-          data-menu-pagina="bots">
-          🤖 <span>Bots</span>
-        </button>
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="bots"
+          >
+            <span class="menu-item-icone">🤖</span>
+            <span class="menu-item-texto">Bots</span>
+            <span
+              id="badgeBotsMenu"
+              class="menu-badge-ravex"
+            >0</span>
+          </button>
 
-        <button class="menu-item-ravex" type="button"
-          data-menu-pagina="apis">
-          🌐 <span>APIs</span>
-        </button>
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="apis"
+          >
+            <span class="menu-item-icone">⌘</span>
+            <span class="menu-item-texto">APIs</span>
+            <span class="menu-item-seta">›</span>
+          </button>
 
-        <button class="menu-item-ravex" type="button"
-          data-menu-pagina="loja">
-          🛒 <span>Loja RAVEX</span>
-        </button>
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="loja"
+          >
+            <span class="menu-item-icone">◇</span>
+            <span class="menu-item-texto">Loja RAVEX</span>
+            <span class="menu-item-seta">›</span>
+          </button>
 
-        <button class="menu-item-ravex" type="button"
-          data-menu-pagina="licenca">
-          🔑 <span>Licença</span>
-        </button>
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="licenca"
+          >
+            <span class="menu-item-icone">🔑</span>
+            <span class="menu-item-texto">
+              Minha licença
+            </span>
+          </button>
+        </div>
 
-        <button class="menu-item-ravex" type="button"
-          data-menu-pagina="suporte">
-          🛟 <span>Suporte e Ajuda</span>
-        </button>
-      </div>
+        <div class="menu-lateral-grupo">
+          <p class="menu-lateral-titulo">CONTA</p>
 
-      <div class="menu-lateral-grupo">
-        <p class="menu-lateral-titulo">
-          CONTA E SISTEMA
-        </p>
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="perfil"
+          >
+            <span class="menu-item-icone">👤</span>
+            <span class="menu-item-texto">
+              Minha conta
+            </span>
+          </button>
 
-        <button
-          id="menuNotificacoes"
-          class="menu-item-ravex"
-          type="button"
+          <button
+            id="menuNotificacoes"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">🔔</span>
+            <span class="menu-item-texto">
+              Notificações
+            </span>
+            <span
+              id="badgeNotificacoesMenu"
+              class="menu-badge-ravex"
+              hidden
+            >0</span>
+          </button>
+
+          <button
+            id="menuSeguranca"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">🛡</span>
+            <span class="menu-item-texto">
+              Segurança
+            </span>
+            <span class="menu-item-seta">›</span>
+          </button>
+
+          <button
+            id="menuConfiguracoes"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">⚙</span>
+            <span class="menu-item-texto">
+              Configurações
+            </span>
+          </button>
+
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="suporte"
+          >
+            <span class="menu-item-icone">?</span>
+            <span class="menu-item-texto">
+              Suporte e Ajuda
+            </span>
+            <span class="menu-item-seta">›</span>
+          </button>
+        </div>
+
+        <div class="menu-lateral-grupo">
+          <p class="menu-lateral-titulo">SERVIDOR</p>
+
+          <button
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="sistema"
+          >
+            <span class="menu-item-icone">▣</span>
+            <span class="menu-item-texto">Sistema</span>
+            <span
+              id="statusSistemaMenu"
+              class="menu-status-ravex"
+            >ONLINE</span>
+          </button>
+        </div>
+
+        
+        <div class="menu-grupo-ravex menu-ferramentas-ravex">
+          <div class="menu-titulo-ravex">
+            FERRAMENTAS
+          </div>
+
+          <button
+            id="menuRelatarProblema"
+            class="menu-item-ravex"
+            type="button"
+            data-menu-pagina="relatar-problema"
+          >
+            <span class="menu-item-icone">🚨</span>
+
+            <span class="menu-item-texto">
+              Relatar problema
+            </span>
+
+            <span class="menu-item-seta">›</span>
+          </button>
+
+          <button
+            id="menuPesquisar"
+            class="menu-item-ravex ravex-somente-owner"
+            type="button"
+            data-menu-pagina="pesquisar"
+            hidden
+          >
+            <span class="menu-item-icone">🔎</span>
+
+            <span class="menu-item-texto">
+              Pesquisar
+            </span>
+
+            <span class="menu-item-seta">›</span>
+          </button>
+        </div>
+
+<div
+          id="menuAdministracao"
+          class="menu-lateral-grupo"
+          hidden
         >
-          🔔 <span>Notificações</span>
-        </button>
+          <p class="menu-lateral-titulo">
+            👑 PROPRIETÁRIO
+          </p>
 
-        <button
-          id="menuSeguranca"
-          class="menu-item-ravex"
-          type="button"
-        >
-          🛡️ <span>Segurança</span>
-        </button>
+          <button
+            id="menuUsuariosOnline"
+              data-menu-pagina="usuarios-online"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">👥</span>
+            <span class="menu-item-texto">
+              Usuários Online
+            </span>
+            <span
+              id="badgeUsuariosOnline"
+              class="menu-badge-ravex"
+            >0</span>
+          </button>
 
-        <button
-          id="menuConfiguracoes"
-          class="menu-item-ravex"
-          type="button"
-        >
-          ⚙️ <span>Configurações</span>
-        </button>
+          <button
+            id="menuClientes"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">♙</span>
+            <span class="menu-item-texto">Clientes</span>
+            <span class="menu-item-seta">›</span>
+          </button>
+
+          <button
+            id="menuLicencasAdmin"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">◆</span>
+            <span class="menu-item-texto">
+              Licenças e Códigos
+            </span>
+            <span class="menu-item-seta">›</span>
+          </button>
+
+          <button
+            id="menuTicketsAdmin"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">▤</span>
+            <span class="menu-item-texto">
+              Tickets e Denúncias
+            </span>
+            <span
+              id="badgeTicketsAdmin"
+              class="menu-badge-ravex"
+              hidden
+            >0</span>
+          </button>
+
+          <button
+            id="menuAtividadesAdmin"
+            class="menu-item-ravex"
+            type="button"
+          >
+            <span class="menu-item-icone">⌁</span>
+            <span class="menu-item-texto">
+              Atividades
+            </span>
+            <span class="menu-item-seta">›</span>
+          </button>
+        </div>
       </div>
 
       <div class="menu-lateral-rodape">
@@ -852,7 +1121,10 @@
           class="menu-item-ravex menu-item-perigo"
           type="button"
         >
-          🚪 <span>Sair</span>
+          <span class="menu-item-icone">↪</span>
+          <span class="menu-item-texto">
+            Sair da conta
+          </span>
         </button>
       </div>
     </aside>

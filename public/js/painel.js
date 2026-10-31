@@ -402,6 +402,105 @@ document.addEventListener(
   renderizarPaginaPerfil
 );
 
+
+function atualizarBadgeBotsMenu() {
+  const badge =
+    document.getElementById('badgeBotsMenu');
+
+  if (!badge) {
+    return;
+  }
+
+  badge.textContent =
+    String(Array.isArray(bots) ? bots.length : 0);
+}
+
+async function atualizarMenuAdministrativo() {
+  const menu =
+    document.getElementById('menuAdministracao');
+
+  const badge =
+    document.getElementById('badgeUsuariosOnline');
+
+  if (!menu) {
+    return;
+  }
+
+  const proprietario =
+    minhaConta?.tipo === 'proprietario';
+
+  menu.hidden = !proprietario;
+
+  if (!proprietario) {
+    if (badge) {
+      badge.textContent = '0';
+    }
+
+    return;
+  }
+
+  try {
+    const resposta = await fetch(
+      '/api/proprietario/usuarios-online',
+      {
+        cache: 'no-store'
+      }
+    );
+
+    if (verificarSessaoExpirada(resposta)) {
+      return;
+    }
+
+    if (resposta.status === 403) {
+      menu.hidden = true;
+      return;
+    }
+
+    if (!resposta.ok) {
+      throw new Error(
+        `HTTP ${resposta.status}`
+      );
+    }
+
+    const resultado = await resposta.json();
+
+    if (badge) {
+      badge.textContent = String(
+        Number(
+          resultado.totalUsuariosOnline
+        ) || 0
+      );
+    }
+  } catch (erro) {
+    console.error(
+      'Erro ao atualizar usuários online:',
+      erro
+    );
+
+    if (badge) {
+      badge.textContent = '—';
+    }
+  }
+}
+
+document.addEventListener(
+  'ravex:conta-atualizada',
+  () => {
+    atualizarMenuAdministrativo();
+  }
+);
+
+setInterval(
+  () => {
+    if (
+      minhaConta?.tipo === 'proprietario'
+    ) {
+      atualizarMenuAdministrativo();
+    }
+  },
+  30 * 1000
+);
+
 async function carregarMinhaConta() {
   try {
     const resposta = await fetch(
@@ -759,6 +858,7 @@ async function carregarBots() {
       : [];
 
     renderizarBots();
+    atualizarBadgeBotsMenu();
   } catch (erro) {
     console.error('Erro ao carregar bots:', erro);
 
@@ -1714,42 +1814,454 @@ if (botaoAbrirPerfil) {
   );
 }
 
+/* =========================================================
+   RAVEX-HOST — NAVEGAÇÃO + HISTÓRICO
+   ========================================================= */
+
+const botaoVoltarPainel =
+  document.getElementById('voltarPainel');
+
+const botaoAvancarPainel =
+  document.getElementById('avancarPainel');
+
+const historicoPainel = ['inicio'];
+let indiceHistoricoPainel = 0;
+
+function atualizarBotoesHistorico() {
+  if (botaoVoltarPainel) {
+    botaoVoltarPainel.disabled =
+      indiceHistoricoPainel <= 0;
+  }
+
+  if (botaoAvancarPainel) {
+    botaoAvancarPainel.disabled =
+      indiceHistoricoPainel >=
+      historicoPainel.length - 1;
+  }
+}
+
+function atualizarPaginaAtiva(pagina) {
+  document
+    .querySelectorAll('.nav-ravex')
+    .forEach(botao => {
+      botao.classList.toggle(
+        'ativo',
+        botao.dataset.pagina === pagina
+      );
+    });
+
+  document
+    .querySelectorAll('[data-menu-pagina]')
+    .forEach(botao => {
+      botao.classList.toggle(
+        'ativo',
+        botao.dataset.menuPagina === pagina
+      );
+    });
+}
+
+
+function escaparHtml(valor) {
+  return String(valor ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function formatarUltimaAtividade(valor) {
+  if (!valor) {
+    return 'Agora';
+  }
+
+  const data = new Date(valor);
+
+  if (Number.isNaN(data.getTime())) {
+    return 'Agora';
+  }
+
+  return data.toLocaleString();
+}
+
+async function carregarUsuariosOnline() {
+  const lista =
+    document.getElementById(
+      'listaUsuariosOnline'
+    );
+
+  const resumo =
+    document.getElementById(
+      'resumoUsuariosOnline'
+    );
+
+  const total =
+    document.getElementById(
+      'totalUsuariosOnlinePagina'
+    );
+
+  const totalBots =
+    document.getElementById(
+      'totalBotsOnlinePagina'
+    );
+
+  const estadoProprietario =
+    document.getElementById(
+      'estadoProprietarioOnline'
+    );
+
+  if (minhaConta?.tipo !== 'proprietario') {
+    if (lista) {
+      lista.innerHTML =
+        '<p>⛔ Acesso restrito ao proprietário.</p>';
+    }
+
+    return;
+  }
+
+  if (resumo) {
+    resumo.textContent =
+      'A atualizar dados...';
+  }
+
+  try {
+    const resposta = await fetch(
+      '/api/proprietario/usuarios-online',
+      {
+        cache: 'no-store'
+      }
+    );
+
+    if (verificarSessaoExpirada(resposta)) {
+      return;
+    }
+
+    if (resposta.status === 403) {
+      throw new Error(
+        'Acesso administrativo negado.'
+      );
+    }
+
+    if (!resposta.ok) {
+      throw new Error(
+        `HTTP ${resposta.status}`
+      );
+    }
+
+    const resultado =
+      await resposta.json();
+
+    const usuarios =
+      Array.isArray(resultado.usuarios)
+        ? resultado.usuarios
+        : [];
+
+    const numeroUsuarios =
+      Number(
+        resultado.totalUsuariosOnline
+      ) || 0;
+
+    const numeroBots =
+      usuarios.reduce(
+        (soma, usuario) =>
+          soma +
+          (Number(usuario.botsOnline) || 0),
+        0
+      );
+
+    if (total) {
+      total.textContent =
+        String(numeroUsuarios);
+    }
+
+    if (totalBots) {
+      totalBots.textContent =
+        String(numeroBots);
+    }
+
+    if (estadoProprietario) {
+      estadoProprietario.textContent =
+        resultado.proprietarioOnline
+          ? 'ONLINE'
+          : 'OFFLINE';
+    }
+
+    const badge =
+      document.getElementById(
+        'badgeUsuariosOnline'
+      );
+
+    if (badge) {
+      badge.textContent =
+        String(numeroUsuarios);
+    }
+
+    if (resumo) {
+      resumo.textContent =
+        `${numeroUsuarios} utilizador(es) online`;
+    }
+
+    if (!lista) {
+      return;
+    }
+
+    if (usuarios.length === 0) {
+      lista.innerHTML =
+        '<p>Nenhum utilizador online neste momento.</p>';
+
+      return;
+    }
+
+    lista.innerHTML = usuarios
+      .map(usuario => {
+        const nome =
+          escaparHtml(
+            usuario.nome ||
+            usuario.username ||
+            'Utilizador'
+          );
+
+        const username =
+          escaparHtml(
+            usuario.username || '—'
+          );
+
+        const plano =
+          escaparHtml(
+            usuario.licenca?.plano ||
+            usuario.plano ||
+            '—'
+          );
+
+        const estado =
+          escaparHtml(
+            usuario.estado || 'online'
+          );
+
+        const botsOnline =
+          Number(usuario.botsOnline) || 0;
+
+        const atividade =
+          escaparHtml(
+            formatarUltimaAtividade(
+              usuario.ultimaAtividade
+            )
+          );
+
+        return `
+          <article class="usuario-online-card">
+            <div class="usuario-online-topo">
+              <div>
+                <strong>${nome}</strong>
+                <span>@${username}</span>
+              </div>
+
+              <span class="usuario-online-status">
+                ● ONLINE
+              </span>
+            </div>
+
+            <div class="usuario-online-dados">
+              <span>
+                Plano
+                <strong>${plano}</strong>
+              </span>
+
+              <span>
+                Bots online
+                <strong>${botsOnline}</strong>
+              </span>
+
+              <span>
+                Estado
+                <strong>${estado}</strong>
+              </span>
+            </div>
+
+            <small>
+              Última atividade:
+              ${atividade}
+            </small>
+          </article>
+        `;
+      })
+      .join('');
+  } catch (erro) {
+    console.error(
+      'Erro ao carregar usuários online:',
+      erro
+    );
+
+    if (resumo) {
+      resumo.textContent =
+        'Não foi possível atualizar os dados.';
+    }
+
+    if (lista) {
+      lista.innerHTML =
+        '<p>⚠️ Dados temporariamente indisponíveis.</p>';
+    }
+  }
+}
+
+function mostrarPaginaPainel(pagina) {
+    const paginas =
+      document.querySelectorAll(
+        '[data-pagina-conteudo]'
+      );
+
+    paginas.forEach(elemento => {
+      elemento.classList.add('oculto');
+      elemento.classList.remove('ativa');
+    });
+
+    const mostrar = (...nomes) => {
+      nomes.forEach(nome => {
+        const elemento =
+          document.querySelector(
+            `[data-pagina-conteudo="${nome}"]`
+          );
+
+        if (!elemento) {
+          return;
+        }
+
+        elemento.classList.remove('oculto');
+        elemento.classList.add('ativa');
+      });
+    };
+
+    switch (pagina) {
+      case 'inicio':
+        mostrar('inicio', 'dashboard');
+        break;
+
+      case 'perfil':
+        mostrar('perfil');
+        abrirPaginaPerfil();
+        break;
+
+      case 'bots':
+        mostrar('bots', 'logs');
+        break;
+
+      case 'sistema':
+        mostrar('sistema');
+        break;
+
+            case 'usuarios-online':
+        if (
+          minhaConta?.tipo !== 'proprietario'
+        ) {
+          mostrar('inicio', 'dashboard');
+          pagina = 'inicio';
+          break;
+        }
+
+        mostrar('usuarios-online');
+        carregarUsuariosOnline();
+        break;
+
+default:
+        mostrar('inicio', 'dashboard');
+        pagina = 'inicio';
+        break;
+    }
+
+    atualizarPaginaAtiva(pagina);
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
+
+  function navegarPainel(
+  pagina,
+  { registrar = true } = {}
+) {
+  if (!pagina) {
+    return;
+  }
+
+  if (registrar) {
+    const paginaAtual =
+      historicoPainel[indiceHistoricoPainel];
+
+    if (paginaAtual !== pagina) {
+      historicoPainel.splice(
+        indiceHistoricoPainel + 1
+      );
+
+      historicoPainel.push(pagina);
+      indiceHistoricoPainel =
+        historicoPainel.length - 1;
+    }
+  }
+
+  mostrarPaginaPainel(pagina);
+  atualizarBotoesHistorico();
+}
+
 document
   .querySelectorAll('.nav-ravex')
   .forEach(botao => {
     botao.addEventListener('click', () => {
-      const pagina = botao.dataset.pagina;
-
-      if (pagina === 'perfil') {
-        abrirPaginaPerfil();
-        return;
-      }
-
-      document
-        .querySelectorAll('.nav-ravex')
-        .forEach(item => {
-          item.classList.toggle(
-            'ativo',
-            item === botao
-          );
-        });
-
-      if (pagina === 'inicio') {
-        const perfil = document.getElementById(
-          'paginaPerfil'
-        );
-
-        if (perfil) {
-          perfil.classList.add('oculto');
-        }
-
-        window.scrollTo({
-          top: 0,
-          behavior: 'smooth'
-        });
-      }
+      navegarPainel(botao.dataset.pagina);
     });
   });
+
+if (botaoAbrirPerfil) {
+  /*
+   * Substitui o comportamento simples do botão
+   * pelo histórico do painel sem remover o
+   * listener antigo, que continua seguro.
+   */
+  botaoAbrirPerfil.addEventListener(
+    'click',
+    () => {
+      navegarPainel('perfil');
+    }
+  );
+}
+
+botaoVoltarPainel?.addEventListener(
+  'click',
+  () => {
+    if (indiceHistoricoPainel <= 0) {
+      return;
+    }
+
+    indiceHistoricoPainel--;
+
+    navegarPainel(
+      historicoPainel[indiceHistoricoPainel],
+      { registrar: false }
+    );
+  }
+);
+
+botaoAvancarPainel?.addEventListener(
+  'click',
+  () => {
+    if (
+      indiceHistoricoPainel >=
+      historicoPainel.length - 1
+    ) {
+      return;
+    }
+
+    indiceHistoricoPainel++;
+
+    navegarPainel(
+      historicoPainel[indiceHistoricoPainel],
+      { registrar: false }
+    );
+  }
+);
+
+atualizarPaginaAtiva('inicio');
+atualizarBotoesHistorico();
 
 
 /* =========================================================
@@ -1927,3 +2439,266 @@ inicializarPainel();
 setInterval(atualizarStatusSistema, 5000);
 setInterval(carregarBots, 5000);
 setInterval(atualizarLogs, 3000);
+
+
+const botaoAtualizarUsuariosOnline =
+  document.getElementById(
+    'atualizarUsuariosOnline'
+  );
+
+botaoAtualizarUsuariosOnline
+  ?.addEventListener(
+    'click',
+    carregarUsuariosOnline
+  );
+
+
+// ======================================================
+// RAVEX-HOST - PRESENÇA DO PAINEL
+// ======================================================
+
+async function enviarPresencaRavex() {
+  try {
+    const resposta = await fetch(
+      '/api/presenca',
+      {
+        method: 'GET',
+        cache: 'no-store'
+      }
+    );
+
+    if (resposta.status === 401) {
+      if (
+        typeof verificarSessaoExpirada ===
+        'function'
+      ) {
+        verificarSessaoExpirada(resposta);
+      }
+    }
+  } catch (erro) {
+    console.debug(
+      'Heartbeat temporariamente indisponível.'
+    );
+  }
+}
+
+enviarPresencaRavex();
+
+setInterval(
+  enviarPresencaRavex,
+  30 * 1000
+);
+
+
+// ======================================================
+// RAVEX-HOST - PRESENÇA DO PAINEL
+// ======================================================
+
+async function enviarPresencaRavex() {
+  try {
+    const resposta = await fetch(
+      '/api/presenca',
+      {
+        method: 'GET',
+        cache: 'no-store'
+      }
+    );
+
+    if (resposta.status === 401) {
+      if (
+        typeof verificarSessaoExpirada ===
+        'function'
+      ) {
+        verificarSessaoExpirada(resposta);
+      }
+    }
+  } catch (erro) {
+    console.debug(
+      'Heartbeat temporariamente indisponível.'
+    );
+  }
+}
+
+enviarPresencaRavex();
+
+setInterval(
+  enviarPresencaRavex,
+  30 * 1000
+);
+
+
+// ======================================================
+// RAVEX-HOST - LIGAÇÃO FINAL DO MENU
+// ======================================================
+
+function configurarMenuFinalRavex() {
+  const proprietario =
+    minhaConta?.tipo === 'proprietario';
+
+  const configuracoes = [
+    [
+      'menuRelatarProblema',
+      'relatar-problema',
+      true
+    ],
+    [
+      'menuPesquisar',
+      'pesquisar',
+      proprietario
+    ],
+    [
+      'menuUsuariosOnline',
+      'usuarios-online',
+      proprietario
+    ],
+    [
+      'menuClientes',
+      'clientes-admin',
+      proprietario
+    ],
+    [
+      'menuLicencasAdmin',
+      'licencas-admin',
+      proprietario
+    ],
+    [
+      'menuTicketsAdmin',
+      'tickets-admin',
+      proprietario
+    ]
+  ];
+
+  for (
+    const [id, pagina, mostrar]
+    of configuracoes
+  ) {
+    const elemento =
+      document.getElementById(id);
+
+    if (!elemento) continue;
+
+    elemento.dataset.menuPagina =
+      pagina;
+
+    elemento.hidden = !mostrar;
+  }
+
+  const grupoAdmin =
+    document.getElementById(
+      'menuAdministracao'
+    );
+
+  if (grupoAdmin) {
+    grupoAdmin.hidden =
+      !proprietario;
+  }
+
+  /*
+   * O item Bots do utilizador continua sendo
+   * a gestão dos próprios bots.
+   *
+   * Para o proprietário acrescentamos acesso
+   * à visão global sem substituir essa página.
+   */
+  let botAdmin =
+    document.getElementById(
+      'menuBotsHospedadosAdmin'
+    );
+
+  if (
+    proprietario &&
+    !botAdmin &&
+    grupoAdmin
+  ) {
+    botAdmin =
+      document.createElement('button');
+
+    botAdmin.id =
+      'menuBotsHospedadosAdmin';
+
+    botAdmin.type =
+      'button';
+
+    botAdmin.className =
+      'menu-item-ravex';
+
+    botAdmin.dataset.menuPagina =
+      'bots-admin';
+
+    botAdmin.innerHTML = `
+      <span class="menu-item-icone">
+        🤖
+      </span>
+
+      <span class="menu-item-texto">
+        Bots hospedados
+      </span>
+
+      <span class="menu-item-seta">
+        ›
+      </span>
+    `;
+
+    grupoAdmin.appendChild(botAdmin);
+  }
+
+  if (botAdmin) {
+    botAdmin.hidden =
+      !proprietario;
+  }
+
+  document
+    .querySelectorAll(
+      '[data-menu-pagina]'
+    )
+    .forEach((item) => {
+      if (
+        item.dataset.ravexLigado ===
+        '1'
+      ) {
+        return;
+      }
+
+      item.dataset.ravexLigado =
+        '1';
+
+      item.addEventListener(
+        'click',
+        () => {
+          const pagina =
+            item.dataset.menuPagina;
+
+          if (!pagina) return;
+
+          if (
+            typeof navegarPainel ===
+            'function'
+          ) {
+            navegarPainel(pagina);
+          } else if (
+            typeof mostrarPaginaPainel ===
+            'function'
+          ) {
+            mostrarPaginaPainel(pagina);
+          }
+
+          if (
+            typeof fecharMenuRavex ===
+            'function'
+          ) {
+            fecharMenuRavex();
+          }
+        }
+      );
+    });
+}
+
+document.addEventListener(
+  'ravex:conta-atualizada',
+  configurarMenuFinalRavex
+);
+
+setTimeout(
+  configurarMenuFinalRavex,
+  500
+);
