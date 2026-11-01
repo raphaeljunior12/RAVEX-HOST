@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const { obterStatusSistema } = require('../servicos/sistema');
 const {
@@ -129,6 +130,10 @@ const {
   validarConfirmacaoAluguel
 } = require('../servicos/codigosAluguel');
 
+const {
+  gerarCodigoLicenca
+} = require('../servicos/codigosLicenca');
+
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -149,6 +154,29 @@ function responderJSON(res, status, dados) {
   });
 
   return res.end(JSON.stringify(dados));
+}
+
+function validarChaveRavexBot(req) {
+  const esperada = String(
+    process.env.RAVEX_BOT_API_KEY || ''
+  );
+
+  const recebida = String(
+    req.headers['x-ravex-bot-key'] || ''
+  );
+
+  if (!esperada || !recebida) {
+    return false;
+  }
+
+  const a = Buffer.from(esperada, 'utf8');
+  const b = Buffer.from(recebida, 'utf8');
+
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(a, b);
 }
 
 function servirArquivo(res, arquivo, tipo) {
@@ -437,6 +465,70 @@ function iniciarServidor() {
     );
 
     const rota = url.pathname;
+
+    if (
+      rota === '/api/integracao/bot/codigos' &&
+      req.method === 'POST'
+    ) {
+      if (!validarChaveRavexBot(req)) {
+        return responderJSON(res, 401, {
+          sucesso: false,
+          mensagem: 'Acesso não autorizado.'
+        });
+      }
+
+      try {
+        const corpo = await lerJSON(req);
+        const dias = Number(corpo.dias);
+        const usuarios = Number(corpo.usuarios);
+
+        if (
+          !Number.isInteger(dias) ||
+          dias < 1 ||
+          dias > 999
+        ) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem: 'Os dias devem estar entre 1 e 999.'
+          });
+        }
+
+        if (
+          !Number.isInteger(usuarios) ||
+          usuarios < 1 ||
+          usuarios > 999
+        ) {
+          return responderJSON(res, 400, {
+            sucesso: false,
+            mensagem: 'Os utilizadores devem estar entre 1 e 999.'
+          });
+        }
+
+        const resultado = gerarCodigoLicenca({
+          dias,
+          usuarios,
+          plano: 'RAVEX-HOST'
+        });
+
+        return responderJSON(res, 201, {
+          sucesso: true,
+          mensagem: 'Código RAVEX-HOST criado com sucesso.',
+          ...resultado
+        });
+      } catch (erro) {
+        console.error(
+          '[RAVEX-HOST] Erro na geração integrada de código:',
+          erro.message
+        );
+
+        return responderJSON(res, 400, {
+          sucesso: false,
+          mensagem: 'Não foi possível gerar o código.'
+        });
+      }
+    }
+
+
 
     if (
       rota === '/api/cadastro/solicitar-confirmacao' &&
